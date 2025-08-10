@@ -38,6 +38,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Auth middleware to check if user is authenticated
   const requireAuth = (req: any, res: any, next: any) => {
+    // Debug session info for browser requests
+    console.log('Browser auth check:', {
+      sessionID: req.sessionID,
+      userId: req.session?.userId,
+      cookies: req.headers.cookie,
+      userAgent: req.headers['user-agent']?.substring(0, 50)
+    });
+    
     if (!req.session.userId) {
       return res.status(401).json({ error: "Authentication required" });
     }
@@ -86,6 +94,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/signin", async (req, res) => {
     try {
       const { email, password } = req.body;
+      console.log('Signin attempt from browser for:', email);
       
       if (!email || !password) {
         return res.status(400).json({ error: "Email and password required" });
@@ -104,6 +113,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create session
       req.session.userId = user.id;
+      console.log('Session created with userId:', user.id, 'sessionID:', req.sessionID);
       
       res.json({
         user: { id: user.id, email: user.email, name: user.name },
