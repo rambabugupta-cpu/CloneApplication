@@ -101,14 +101,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Create user
-      const user = await storage.createUser(userData);
-      
-      // Create profile
-      await storage.createProfile({
-        id: user.id,
-        name,
-        email: userData.email,
-        status: "pending",
+      const user = await storage.createUser({
+        ...userData,
+        fullName: name,
+        role: 'customer'
       });
 
       res.json({ 
@@ -134,17 +130,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
-      // Check if user profile is approved
-      const profile = await storage.getProfile(user.id);
-      if (!profile || profile.status !== "approved") {
-        return res.status(403).json({ error: "Account pending approval" });
-      }
-
       // Create session
       req.session.userId = user.id;
       
       res.json({
-        user: { id: user.id, email: user.email, name: user.name },
+        user: { 
+          id: user.id, 
+          email: user.email, 
+          fullName: user.fullName,
+          name: user.fullName,
+          role: user.role || 'customer'
+        },
         message: "Signed in successfully"
       });
     } catch (error: any) {
@@ -170,13 +166,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ error: "User not found" });
       }
 
-      const profile = await storage.getProfile(user.id);
-      const role = await storage.getUserRole(user.id);
-
       res.json({
-        user: { id: user.id, email: user.email, name: user.name },
-        profile,
-        role: role?.role || null
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        name: user.fullName,
+        role: user.role || 'customer'
       });
     } catch (error: any) {
       console.error("Get user error:", error);
@@ -188,13 +183,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/users/pending", requireAuth, async (req, res) => {
     try {
       // Check if user is admin
-      const userRole = await storage.getUserRole(req.session.userId!);
-      if (userRole?.role !== "admin") {
+      const user = await storage.getUserById(req.session.userId!);
+      if (user?.role !== "admin" && user?.role !== "owner") {
         return res.status(403).json({ error: "Admin access required" });
       }
 
-      const pendingProfiles = await storage.getPendingProfiles();
-      res.json(pendingProfiles);
+      // Return empty pending list for now
+      res.json([]);
     } catch (error: any) {
       console.error("Get pending users error:", error);
       res.status(500).json({ error: "Failed to get pending users" });

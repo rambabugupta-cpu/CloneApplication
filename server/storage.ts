@@ -47,6 +47,34 @@ export class DatabaseStorage {
     });
   }
 
+  async getUsers() {
+    // Return sample users for now
+    return [
+      { id: '1', email: 'owner@example.com', fullName: 'System Owner', role: 'owner' },
+      { id: '2', email: 'admin@example.com', fullName: 'Admin User', role: 'admin' }
+    ];
+  }
+
+  async getUserRole(userId: string) {
+    const user = await authService.getUserById(userId);
+    return user ? { role: user.role } : null;
+  }
+
+  async getPaymentStats() {
+    const payments = await paymentService.getPayments();
+    const pending = payments.filter((p: any) => p.status === 'pending');
+    const approved = payments.filter((p: any) => p.status === 'approved');
+    return {
+      totalCollected: approved.reduce((sum: number, p: any) => sum + (p.amount || 0), 0),
+      pendingCount: pending.length,
+      approvedCount: approved.length
+    };
+  }
+
+  async getAllCustomers() {
+    return await customerService.getAllCustomers();
+  }
+
   async getDashboardStats() {
     return await collectionService.getDashboardStats();
   }
