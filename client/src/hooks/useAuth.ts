@@ -23,9 +23,14 @@ export const useAuth = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const data: AuthData = await apiRequest('/api/auth/me');
-        setUser(data.user);
-        setProfile(data.profile);
+        const data: any = await apiRequest('/api/auth/me');
+        // Backend returns user data directly, not wrapped in 'user' object
+        setUser({
+          id: data.id,
+          email: data.email,
+          name: data.fullName || data.name
+        });
+        setProfile(data);
         setRole(data.role || null);
       } catch (error) {
         // Not authenticated, which is fine
@@ -54,15 +59,22 @@ export const useAuth = () => {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const data: AuthData = await apiRequest('/api/auth/signin', {
+      const data: any = await apiRequest('/api/auth/signin', {
         method: 'POST',
         body: JSON.stringify({ email, password }),
       });
-      setUser(data.user);
+      
+      // Backend returns user data in 'user' field for signin
+      const userData = data.user;
+      setUser({
+        id: userData.id,
+        email: userData.email,
+        name: userData.fullName || userData.name
+      });
       
       // Fetch full user data after signin
-      const fullData: AuthData = await apiRequest('/api/auth/me');
-      setProfile(fullData.profile);
+      const fullData: any = await apiRequest('/api/auth/me');
+      setProfile(fullData);
       setRole(fullData.role || null);
       
       return { error: null };

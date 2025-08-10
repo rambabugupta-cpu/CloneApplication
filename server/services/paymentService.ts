@@ -212,4 +212,10 @@ export class PaymentService {
       rejectedCount: 0,
     };
   }
+
+  async getAllPayments(): Promise<Payment[]> {
+    return await db.select()
+      .from(payments)
+      .orderBy(desc(payments.createdAt));
+  }
 }

@@ -95,4 +95,8 @@ export class AuthService {
       .set({ status, updatedAt: new Date() })
       .where(eq(users.id, userId));
   }
+
+  async getAllUsers(): Promise<User[]> {
+    return await db.select().from(users);
+  }
 }
