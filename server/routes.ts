@@ -18,15 +18,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
     secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
     resave: false,
     saveUninitialized: false,
+    name: 'connect.sid',
     cookie: {
       secure: false, // Set to true in production with HTTPS
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      sameSite: 'lax', // Important for modern browsers
     },
   }));
 
   // Auth middleware to check if user is authenticated
   const requireAuth = (req: any, res: any, next: any) => {
+    console.log('Auth check - Session ID:', req.sessionID);
+    console.log('Auth check - Session data:', req.session);
+    console.log('Auth check - User ID:', req.session?.userId);
+    
     if (!req.session.userId) {
       return res.status(401).json({ error: "Authentication required" });
     }
