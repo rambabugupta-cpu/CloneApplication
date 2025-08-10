@@ -12,42 +12,47 @@ import Collections from "./pages/Collections";
 import Import from "./pages/Import";
 import NotFound from "./pages/NotFound";
 import ProtectedRoute from "./components/ProtectedRoute";
+import MainLayout from "./components/MainLayout";
+import { UserProvider } from "@/hooks/use-user";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="system" storageKey="collection-theme">
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/" element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            } />
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            } />
-            <Route path="/collections" element={
-              <ProtectedRoute>
-                <Collections />
-              </ProtectedRoute>
-            } />
-            <Route path="/import" element={
-              <ProtectedRoute>
-                <Import />
-              </ProtectedRoute>
-            } />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
-    </ThemeProvider>
+    <UserProvider>
+      <ThemeProvider defaultTheme="system" storageKey="collection-theme">
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/" element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <Dashboard />
+                  </MainLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/collections" element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <Collections />
+                  </MainLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/import" element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <Import />
+                  </MainLayout>
+                </ProtectedRoute>
+              } />
+              {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </TooltipProvider>
+      </ThemeProvider>
+    </UserProvider>
   </QueryClientProvider>
 );
 
