@@ -125,7 +125,7 @@ export default function UserManagement() {
               <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
-                    <CardTitle className="text-xl">{pendingUser.name || "No Name"}</CardTitle>
+                    <CardTitle className="text-xl">{pendingUser.fullName || pendingUser.name || "No Name"}</CardTitle>
                     <Badge variant="outline" className="mt-2">
                       <Clock className="h-3 w-3 mr-1" />
                       Pending Approval

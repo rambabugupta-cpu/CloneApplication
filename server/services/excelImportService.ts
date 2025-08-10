@@ -200,12 +200,12 @@ export class ExcelImportService {
 
     // Generate customer code if not provided
     const finalCustomerCode = customerCode || 
-      `CUST-${customerName.substring(0, 3).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+      `CUST-${customerName!.substring(0, 3).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
 
     // Create or update customer
     const customer = await this.customerService.createOrUpdateFromImport({
       customerCode: finalCustomerCode,
-      primaryContactName: customerName,
+      primaryContactName: customerName!,
       primaryPhone: phone,
       companyName: companyName,
     });

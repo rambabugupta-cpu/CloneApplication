@@ -62,7 +62,8 @@ export class DatabaseStorage {
   }
 
   async getPaymentStats() {
-    const payments = await paymentService.getPayments();
+    // Use paymentService.getAllPayments() instead of getPayments()
+    const payments = await paymentService.getAllPayments();
     const pending = payments.filter((p: any) => p.status === 'pending');
     const approved = payments.filter((p: any) => p.status === 'approved');
     return {
@@ -117,7 +118,7 @@ export class DatabaseStorage {
   async getCustomerByName(name: string) {
     if (!name) return null;
     const customers = await customerService.getAllCustomers();
-    return customers.find((c: any) => c.name && c.name.toLowerCase() === name.toLowerCase()) || null;
+    return customers.find((c: any) => c.primaryContactName && c.primaryContactName.toLowerCase() === name.toLowerCase()) || null;
   }
 
   async createCustomer(data: any) {
