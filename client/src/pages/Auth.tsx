@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,34 +8,12 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
 
 const Auth = () => {
   const { user, loading, signIn, signUp } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>('');
-  const signinEmailRef = useRef<HTMLInputElement>(null);
-
-  const handleResetPassword = async () => {
-    const email = signinEmailRef.current?.value;
-    if (!email) {
-      toast({
-        variant: 'destructive',
-        title: 'Email required',
-        description: 'Enter your email to reset your password.'
-      });
-      return;
-    }
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/`
-    });
-    if (error) {
-      toast({ variant: 'destructive', title: 'Reset failed', description: error.message });
-    } else {
-      toast({ title: 'Password reset email sent', description: 'Check your inbox for the reset link.' });
-    }
-  };
 
   // Redirect if already authenticated
   if (!loading && user) {
@@ -130,7 +108,6 @@ const Auth = () => {
                     type="email"
                     placeholder="Enter your email"
                     required
-                    ref={signinEmailRef}
                   />
                 </div>
                 <div className="space-y-2">
@@ -151,9 +128,7 @@ const Auth = () => {
                 <Button type="submit" className="w-full" disabled={isLoading}>
                   {isLoading ? 'Signing in...' : 'Sign In'}
                 </Button>
-                <Button type="button" variant="link" className="w-full" onClick={handleResetPassword}>
-                  Forgot password?
-                </Button>
+
               </form>
             </TabsContent>
             

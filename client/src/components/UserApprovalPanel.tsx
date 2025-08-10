@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { CheckCircle, XCircle, Mail, Clock } from "lucide-react";
 
 interface PendingUser {
@@ -11,97 +12,51 @@ interface PendingUser {
   name: string;
   email: string;
   status: string;
-  created_at: string;
+  createdAt: string;
 }
 
 const UserApprovalPanel = () => {
-  const [pendingUsers, setPendingUsers] = useState<PendingUser[]>([]);
-  const [loading, setLoading] = useState(true);
   const [processingUser, setProcessingUser] = useState<string | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const fetchPendingUsers = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false });
+  const { data: pendingUsers = [], isLoading: loading } = useQuery<PendingUser[]>({
+    queryKey: ['/api/users/pending'],
+    staleTime: 1000 * 60, // 1 minute
+  });
 
-      if (error) throw error;
-      setPendingUsers(data || []);
-    } catch (error: any) {
+  const approvalMutation = useMutation({
+    mutationFn: async ({ userId, status }: { userId: string; status: 'approved' | 'rejected' }) => {
+      return apiRequest(`/api/users/${userId}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ status }),
+      });
+    },
+    onSuccess: (data, variables) => {
       toast({
-        variant: 'destructive',
-        title: 'Error loading users',
-        description: error.message
+        title: `User ${variables.status}`,
+        description: data.message,
+        variant: variables.status === 'approved' ? 'default' : 'destructive'
       });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleApproval = async (userId: string, status: 'approved' | 'rejected', userEmail: string, userName: string) => {
-    setProcessingUser(userId);
-    
-    try {
-      // Update user status
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ status })
-        .eq('id', userId);
-
-      if (updateError) throw updateError;
-
-      // Assign employee role if approved
-      if (status === 'approved') {
-        const { error: roleError } = await supabase
-          .from('user_roles')
-          .insert({ user_id: userId, role: 'employee' });
-
-        if (roleError) throw roleError;
-      }
-
-      // Send approval email
-      const { error: emailError } = await supabase.functions.invoke('send-approval-email', {
-        body: {
-          email: userEmail,
-          name: userName,
-          status
-        }
-      });
-
-      if (emailError) {
-        console.warn('Email sending failed:', emailError);
-        toast({
-          title: 'User updated but email failed',
-          description: `User ${status} successfully but approval email could not be sent.`,
-          variant: 'default'
-        });
-      } else {
-        toast({
-          title: `User ${status}`,
-          description: `${userName} has been ${status} and notified via email.`,
-          variant: status === 'approved' ? 'default' : 'destructive'
-        });
-      }
-
-      // Refresh the list
-      fetchPendingUsers();
-    } catch (error: any) {
+      // Refresh the pending users list
+      queryClient.invalidateQueries({ queryKey: ['/api/users/pending'] });
+    },
+    onError: (error: any) => {
       toast({
         variant: 'destructive',
         title: 'Error processing user',
         description: error.message
       });
-    } finally {
+    },
+    onSettled: () => {
       setProcessingUser(null);
     }
-  };
+  });
 
-  useEffect(() => {
-    fetchPendingUsers();
-  }, []);
+  const handleApproval = async (userId: string, status: 'approved' | 'rejected') => {
+    setProcessingUser(userId);
+    approvalMutation.mutate({ userId, status });
+  };
 
   if (loading) {
     return (
@@ -145,7 +100,7 @@ const UserApprovalPanel = () => {
                       <h4 className="font-medium">{user.name}</h4>
                       <p className="text-sm text-muted-foreground">{user.email}</p>
                       <p className="text-xs text-muted-foreground">
-                        Registered: {new Date(user.created_at).toLocaleDateString()}
+                        Registered: {new Date(user.createdAt).toLocaleDateString()}
                       </p>
                     </div>
                     <Badge variant="secondary">
@@ -157,7 +112,7 @@ const UserApprovalPanel = () => {
                   <Button
                     size="sm"
                     variant="default"
-                    onClick={() => handleApproval(user.id, 'approved', user.email, user.name)}
+                    onClick={() => handleApproval(user.id, 'approved')}
                     disabled={processingUser === user.id}
                     className="flex items-center gap-1"
                   >
@@ -167,7 +122,7 @@ const UserApprovalPanel = () => {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => handleApproval(user.id, 'rejected', user.email, user.name)}
+                    onClick={() => handleApproval(user.id, 'rejected')}
                     disabled={processingUser === user.id}
                     className="flex items-center gap-1"
                   >

@@ -1,64 +1,95 @@
 import { useState, useEffect } from 'react';
-import { User, Session } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
+import { apiRequest } from '@/lib/queryClient';
+
+interface User {
+  id: string;
+  email: string;
+  name: string;
+}
+
+interface AuthData {
+  user: User;
+  profile?: any;
+  role?: string;
+}
 
 export const useAuth = () => {
   const [user, setUser] = useState<User | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [role, setRole] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Check for existing session on mount
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
+    const checkAuth = async () => {
+      try {
+        const data: AuthData = await apiRequest('/api/auth/me');
+        setUser(data.user);
+        setProfile(data.profile);
+        setRole(data.role || null);
+      } catch (error) {
+        // Not authenticated, which is fine
+        setUser(null);
+        setProfile(null);
+        setRole(null);
+      } finally {
         setLoading(false);
       }
-    );
+    };
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    checkAuth();
   }, []);
 
   const signUp = async (email: string, password: string, name: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          name
-        }
-      }
-    });
-    return { error };
+    try {
+      await apiRequest('/api/auth/signup', {
+        method: 'POST',
+        body: JSON.stringify({ email, password, name }),
+      });
+      return { error: null };
+    } catch (error: any) {
+      return { error: { message: error.message } };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    return { error };
+    try {
+      const data: AuthData = await apiRequest('/api/auth/signin', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      });
+      setUser(data.user);
+      
+      // Fetch full user data after signin
+      const fullData: AuthData = await apiRequest('/api/auth/me');
+      setProfile(fullData.profile);
+      setRole(fullData.role || null);
+      
+      return { error: null };
+    } catch (error: any) {
+      return { error: { message: error.message } };
+    }
   };
 
   const signOut = async () => {
-    const { error } = await supabase.auth.signOut();
-    return { error };
+    try {
+      await apiRequest('/api/auth/signout', {
+        method: 'POST',
+      });
+      setUser(null);
+      setProfile(null);
+      setRole(null);
+      return { error: null };
+    } catch (error: any) {
+      return { error: { message: error.message } };
+    }
   };
 
   return {
     user,
-    session,
+    profile,
+    role,
+    session: user ? { user } : null, // Maintain compatibility
     loading,
     signUp,
     signIn,
