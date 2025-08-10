@@ -38,7 +38,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
     { name: "Dashboard", href: "/", icon: LayoutDashboard, roles: ["owner", "admin", "staff", "customer"] },
     { name: "Collections", href: "/collections", icon: IndianRupee, roles: ["owner", "admin", "staff", "customer"] },
     { name: "Import Excel", href: "/import", icon: Upload, roles: ["owner", "admin"] },
-    { name: "User Management", href: "/pending-approvals", icon: Users, roles: ["owner", "admin"] },
+    { name: "Users", href: "/users", icon: Users, roles: ["owner", "admin"] },
+    { name: "Pending Approvals", href: "/pending-approvals", icon: Users, roles: ["owner", "admin"] },
   ];
 
   const filteredNavigation = navigation.filter(item => 

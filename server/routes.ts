@@ -195,6 +195,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get all users by role
+  app.get("/api/users", requireAuth, async (req, res) => {
+    try {
+      const { role } = req.query;
+      
+      // Check if user is admin or owner
+      const currentUser = await storage.getUserById(req.session.userId!);
+      if (currentUser?.role !== "admin" && currentUser?.role !== "owner") {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      // Get all users, optionally filtered by role
+      const users = await storage.getUsers();
+      const filteredUsers = role 
+        ? users.filter((u: any) => u.role === role)
+        : users;
+
+      res.json(filteredUsers);
+    } catch (error: any) {
+      console.error("Get users error:", error);
+      res.status(500).json({ error: "Failed to get users" });
+    }
+  });
+
   app.post("/api/users/:userId/approve", requireAuth, async (req, res) => {
     try {
       const { userId } = req.params;
@@ -444,27 +468,80 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let failedRecords = 0;
       const errors: any[] = [];
 
-      for (const row of jsonData) {
+      // Store imported customers and collections for response
+      const importedCustomers: any[] = [];
+      const importedCollections: any[] = [];
+
+      for (let i = 0; i < jsonData.length; i++) {
+        const row = jsonData[i];
         try {
-          // Map Excel columns to collection fields (flexible mapping)
-          const customerName = (row as any)['Customer Name'] || (row as any)['Name'] || (row as any)['Party Name'] || (row as any)['Sundry Debtors'] || '';
-          const amount = parseFloat(String((row as any)['Outstanding Amount'] || (row as any)['Amount'] || (row as any)['Balance'] || (row as any)['Outstanding'] || 0).replace(/[₹,]/g, ''));
-          const invoiceNo = (row as any)['Invoice Number'] || (row as any)['Invoice No'] || (row as any)['Bill No'] || (row as any)['Reference'] || `INV-${Date.now()}`;
-          const dueDate = (row as any)['Due Date'] || (row as any)['Date'] || new Date().toISOString();
+          // Map Excel columns to collection fields (flexible mapping) - check all possible column names
+          const customerName = (row as any)['Customer Name'] || 
+                             (row as any)['Name'] || 
+                             (row as any)['Party Name'] || 
+                             (row as any)['Sundry Debtors'] || 
+                             (row as any)['Customer'] ||
+                             (row as any)['Client'] || '';
           
-          if (!customerName || !amount) {
+          const amountStr = (row as any)['Outstanding Amount'] || 
+                           (row as any)['Amount'] || 
+                           (row as any)['Balance'] || 
+                           (row as any)['Outstanding'] ||
+                           (row as any)['Due Amount'] ||
+                           (row as any)['Total'] || 0;
+          
+          // Parse amount more carefully
+          const amount = parseFloat(String(amountStr).replace(/[₹,\s]/g, '')) || 0;
+          
+          // Generate unique invoice number for each row
+          const invoiceNo = (row as any)['Invoice Number'] || 
+                           (row as any)['Invoice No'] || 
+                           (row as any)['Bill No'] || 
+                           (row as any)['Reference'] || 
+                           `INV-${Date.now()}-${i}`;
+          
+          const dueDate = (row as any)['Due Date'] || 
+                         (row as any)['Date'] || 
+                         new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+          
+          // Skip row if no customer name
+          if (!customerName || customerName.trim() === '') {
             failedRecords++;
-            errors.push({ row: row, error: 'Missing customer name or amount' });
+            errors.push({ 
+              row: i + 1, 
+              data: row, 
+              error: 'Missing customer name' 
+            });
+            continue;
+          }
+
+          // Skip row if amount is 0 or invalid
+          if (!amount || amount <= 0) {
+            failedRecords++;
+            errors.push({ 
+              row: i + 1, 
+              data: row, 
+              error: 'Invalid or zero amount' 
+            });
             continue;
           }
 
           // Create or find customer
           let customer = await storage.getCustomerByName(customerName);
           if (!customer) {
+            // Generate unique customer code with timestamp
+            const customerCode = (row as any)['Customer Code'] || 
+                               (row as any)['Code'] || 
+                               `CUST-${Date.now()}-${i}`;
+            
             customer = await storage.createCustomer({
               primaryContactName: customerName,
-              customerCode: (row as any)['Customer Code'] || (row as any)['Code'] || `CUST${Date.now()}`,
-              primaryPhone: (row as any)['Phone Number'] || (row as any)['Phone'] || (row as any)['Mobile'] || '',
+              customerCode: customerCode,
+              // Make phone optional - provide empty string if not present
+              primaryPhone: (row as any)['Phone Number'] || 
+                          (row as any)['Phone'] || 
+                          (row as any)['Mobile'] || 
+                          (row as any)['Contact'] || '',
               primaryEmail: (row as any)['Email'] || '',
               gstNumber: (row as any)['GST Number'] || (row as any)['GST'] || '',
               addressLine1: (row as any)['Address'] || '',
@@ -474,33 +551,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
               creditLimit: parseFloat(String((row as any)['Credit Limit'] || 0).replace(/[₹,]/g, '')) || 0,
               creditDays: parseInt((row as any)['Credit Days'] || '30') || 30,
             });
+            importedCustomers.push(customer);
           }
 
           // Create collection record
-          await storage.createCollection({
+          const collection = await storage.createCollection({
             customerId: customer.id,
             invoiceNumber: invoiceNo,
             invoiceDate: new Date().toISOString(),
             dueDate: dueDate,
-            originalAmount: amount,
-            outstandingAmount: amount,
+            originalAmount: Math.round(amount * 100), // Convert to paise
+            outstandingAmount: Math.round(amount * 100), // Convert to paise
             status: 'pending',
             createdBy: req.session.userId!,
           });
-
+          
+          importedCollections.push(collection);
           successRecords++;
+          
         } catch (error: any) {
           failedRecords++;
-          errors.push({ row: row, error: error.message });
+          errors.push({ 
+            row: i + 1, 
+            data: row, 
+            error: error.message 
+          });
         }
       }
 
       res.json({
-        message: "File processed successfully",
+        message: `File processed successfully. ${successRecords} records imported, ${failedRecords} failed.`,
         totalRecords: jsonData.length,
         successRecords,
         failedRecords,
-        errors: errors.slice(0, 5), // First 5 errors for debugging
+        errors: errors.slice(0, 10), // First 10 errors for debugging
+        importedCustomers: importedCustomers.slice(0, 10), // Show first 10 imported customers
+        importedCollections: importedCollections.slice(0, 10), // Show first 10 imported collections
       });
     } catch (error: any) {
       console.error("Excel upload error:", error);

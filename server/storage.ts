@@ -49,11 +49,7 @@ export class DatabaseStorage {
   }
 
   async getUsers() {
-    // Return sample users for now
-    return [
-      { id: '1', email: 'owner@example.com', fullName: 'System Owner', role: 'owner' },
-      { id: '2', email: 'admin@example.com', fullName: 'Admin User', role: 'admin' }
-    ];
+    return await authService.getAllUsers();
   }
 
   async getUserRole(userId: string) {

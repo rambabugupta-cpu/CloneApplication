@@ -12,6 +12,7 @@ import Collections from "./pages/Collections";
 import Import from "./pages/Import";
 import NotFound from "./pages/NotFound";
 import UserManagement from "./pages/UserManagement";
+import Users from "./pages/Users";
 import ProtectedRoute from "./components/ProtectedRoute";
 import MainLayout from "./components/MainLayout";
 import { UserProvider } from "@/hooks/use-user";
@@ -51,6 +52,13 @@ const App = () => (
                 <ProtectedRoute>
                   <MainLayout>
                     <UserManagement />
+                  </MainLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/users" element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <Users />
                   </MainLayout>
                 </ProtectedRoute>
               } />
