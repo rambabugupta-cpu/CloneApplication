@@ -174,32 +174,36 @@ export function ExcelImport({ onImportComplete }: ExcelImportProps) {
   };
 
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <FileSpreadsheet className="h-5 w-5" />
+    <Card className="w-full shadow-lg border-0 bg-card/50 backdrop-blur">
+      <CardHeader className="pb-4">
+        <CardTitle className="flex items-center gap-2 text-2xl">
+          <div className="p-2 bg-primary/10 rounded-lg">
+            <FileSpreadsheet className="h-6 w-6 text-primary" />
+          </div>
           Excel Import
         </CardTitle>
-        <CardDescription>
-          Import customer data from Excel files. Your Excel file should contain columns for 
-          "Customer Name" and "Amount" (in ₹). Optional columns include "Email", "Phone", and "Description".
+        <CardDescription className="text-base mt-2">
+          Import customer data from Excel files. Your file should contain customer names and amounts.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* File Upload Section */}
         {!fileId && (
           <div className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="excel-file">Select Excel File</Label>
+            <div className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+              <Upload className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+              <Label htmlFor="excel-file" className="text-lg font-medium cursor-pointer">
+                Click to upload Excel file
+              </Label>
               <Input
                 id="excel-file"
                 type="file"
                 accept=".xlsx,.xls"
                 onChange={handleFileUpload}
                 disabled={isUploading}
-                className="cursor-pointer"
+                className="hidden"
               />
-              <p className="text-sm text-muted-foreground">
+              <p className="text-sm text-muted-foreground mt-2">
                 Supported formats: .xlsx, .xls (Max size: 5MB)
               </p>
             </div>
@@ -297,18 +301,45 @@ export function ExcelImport({ onImportComplete }: ExcelImportProps) {
         )}
 
         {/* Instructions */}
-        <div className="text-sm text-muted-foreground space-y-2">
-          <h4 className="font-medium text-foreground">Excel File Format:</h4>
-          <ul className="space-y-1 list-disc list-inside">
-            <li><strong>Customer Name</strong> - Required column with customer names</li>
-            <li><strong>Amount</strong> - Required column with amounts in ₹ (Indian Rupees)</li>
-            <li><strong>Email</strong> - Optional email addresses</li>
-            <li><strong>Phone</strong> - Optional phone numbers</li>
-            <li><strong>Description</strong> - Optional description or notes</li>
-          </ul>
-          <p className="mt-2">
-            <strong>Note:</strong> All amounts will be treated as Indian Rupees (₹). 
-            The system will automatically create collection records with 30-day due dates.
+        <div className="bg-muted/50 rounded-lg p-4 space-y-3">
+          <h4 className="font-medium text-sm">Accepted Column Names</h4>
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="font-medium text-muted-foreground mb-1">Customer Name</p>
+              <ul className="space-y-0.5 text-xs">
+                <li>• Customer Name</li>
+                <li>• Customer</li>
+                <li>• Name</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-muted-foreground mb-1">Amount (₹)</p>
+              <ul className="space-y-0.5 text-xs">
+                <li>• Amount</li>
+                <li>• Outstanding Amount</li>
+                <li>• Outstanding</li>
+                <li>• Total</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-muted-foreground mb-1">Phone (Optional)</p>
+              <ul className="space-y-0.5 text-xs">
+                <li>• Phone</li>
+                <li>• Phone Number</li>
+                <li>• Mobile</li>
+                <li>• Contact</li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-medium text-muted-foreground mb-1">Email (Optional)</p>
+              <ul className="space-y-0.5 text-xs">
+                <li>• Email</li>
+                <li>• Email Address</li>
+              </ul>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            <strong>Note:</strong> Records will be created with 30-day due dates. Column names are case-insensitive.
           </p>
         </div>
       </CardContent>

@@ -265,18 +265,47 @@ export class DatabaseStorage implements IStorage {
     for (const row of excelRows) {
       const rowData = row.rowData as any;
       
-      // Extract customer name and amount from the Excel data
-      const customerName = rowData['Customer Name'] || rowData['customer_name'] || rowData['Customer'] || '';
-      const amountStr = rowData['Amount'] || rowData['amount'] || '0';
+      // Extract customer name from various possible column names
+      const customerName = rowData['Customer Name'] || 
+                          rowData['customer_name'] || 
+                          rowData['Customer'] || 
+                          rowData['Name'] || 
+                          rowData['name'] || '';
+      
+      // Extract amount from various possible column names
+      const amountStr = rowData['Amount'] || 
+                       rowData['amount'] || 
+                       rowData['Outstanding Amount'] || 
+                       rowData['outstanding_amount'] ||
+                       rowData['Outstanding'] ||
+                       rowData['Total'] ||
+                       rowData['total'] || '0';
       
       // Convert amount to paise (Indian currency subunit)
       const amount = Math.round(parseFloat(String(amountStr).replace(/[₹,\s]/g, '')) * 100);
       
       if (customerName && amount > 0) {
+        // Extract phone number from various possible column names
+        const phoneNumber = rowData['Phone'] || 
+                           rowData['phone'] || 
+                           rowData['Phone Number'] || 
+                           rowData['phone_number'] ||
+                           rowData['Mobile'] ||
+                           rowData['mobile'] ||
+                           rowData['Contact'] ||
+                           rowData['contact'] || null;
+        
+        // Extract email from various possible column names
+        const email = rowData['Email'] || 
+                     rowData['email'] || 
+                     rowData['Email Address'] ||
+                     rowData['email_address'] ||
+                     `${customerName.toLowerCase().replace(/\s+/g, '.')}@example.com`;
+        
         const collection = await this.createCollection({
           customerName,
-          customerEmail: rowData['Email'] || rowData['email'] || `${customerName.toLowerCase().replace(/\s+/g, '.')}@example.com`,
-          customerPhone: rowData['Phone'] || rowData['phone'] || null,
+          customerEmail: email,
+          customerPhone: phoneNumber,
           invoiceNumber: `INV-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
           invoiceDate: new Date(),
           dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
