@@ -8,6 +8,7 @@ import { PaymentService } from "./services/paymentService";
 import { NotificationService } from "./services/notificationService";
 import { AuditService } from "./services/auditService";
 import { ExcelImportService } from "./services/excelImportService";
+import { communicationService } from "./services/communicationService";
 
 // Export service instances for backward compatibility
 export const authService = new AuthService();
@@ -102,6 +103,25 @@ export class DatabaseStorage {
 
   async createPayment(data: any) {
     return await paymentService.recordPayment(data);
+  }
+
+  async getCommunicationsByCollection(collectionId: number) {
+    return await communicationService.getCommunicationsByCollection(String(collectionId));
+  }
+
+  async createCommunication(data: any) {
+    return await communicationService.createCommunication(data);
+  }
+
+  // Customer operations for Excel import
+  async getCustomerByName(name: string) {
+    if (!name) return null;
+    const customers = await customerService.getAllCustomers();
+    return customers.find((c: any) => c.name && c.name.toLowerCase() === name.toLowerCase()) || null;
+  }
+
+  async createCustomer(data: any) {
+    return await customerService.createCustomer(data);
   }
 }
 

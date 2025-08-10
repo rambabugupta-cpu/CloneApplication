@@ -436,45 +436,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Excel Import API Routes
-  app.post("/api/excel/upload", requireAuth, upload.single('excel'), async (req, res) => {
+  // Excel Import API Routes  
+  app.post("/api/import/excel", requireAuth, upload.single('file'), async (req, res) => {
     try {
       if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded" });
+        return res.status(400).json({ message: "No file uploaded", error: "Please select a file to upload" });
       }
-
-      // Save file metadata to database
-      const uploadedFile = await storage.createUploadedFile({
-        userId: req.session.userId!,
-        filename: `${Date.now()}_${req.file.originalname}`,
-        originalName: req.file.originalname,
-        mimeType: req.file.mimetype,
-        fileSize: req.file.size,
-        status: "processing",
-      });
 
       // Parse Excel file
       const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
       const sheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[sheetName];
-      const jsonData = xlsx.utils.sheet_to_json(worksheet);
+      const jsonData = xlsx.utils.sheet_to_json(worksheet, { raw: false, defval: '' });
 
-      // Store each row in the database
+      // Process and import data
+      let successRecords = 0;
+      let failedRecords = 0;
+      const errors: any[] = [];
+
       for (const row of jsonData) {
-        await storage.createExcelData({
-          fileId: uploadedFile.id,
-          rowData: row as any,
-        });
+        try {
+          // Map Excel columns to collection fields (flexible mapping)
+          const customerName = row['Customer Name'] || row['Name'] || row['Party Name'] || row['Sundry Debtors'] || '';
+          const amount = parseFloat(String(row['Outstanding Amount'] || row['Amount'] || row['Balance'] || row['Outstanding'] || 0).replace(/[₹,]/g, ''));
+          const invoiceNo = row['Invoice Number'] || row['Invoice No'] || row['Bill No'] || row['Reference'] || `INV-${Date.now()}`;
+          const dueDate = row['Due Date'] || row['Date'] || new Date().toISOString();
+          
+          if (!customerName || !amount) {
+            failedRecords++;
+            errors.push({ row: row, error: 'Missing customer name or amount' });
+            continue;
+          }
+
+          // Create or find customer
+          let customer = await storage.getCustomerByName(customerName);
+          if (!customer) {
+            customer = await storage.createCustomer({
+              name: customerName,
+              code: row['Customer Code'] || row['Code'] || `CUST${Date.now()}`,
+              phoneNumber: row['Phone Number'] || row['Phone'] || row['Mobile'] || '',
+              email: row['Email'] || '',
+              gstNumber: row['GST Number'] || row['GST'] || '',
+              address: row['Address'] || '',
+              city: row['City'] || '',
+              state: row['State'] || '',
+              pincode: row['Pincode'] || row['Pin'] || '',
+              creditLimit: parseFloat(String(row['Credit Limit'] || 0).replace(/[₹,]/g, '')) || 0,
+              creditDays: parseInt(row['Credit Days'] || '30') || 30,
+            });
+          }
+
+          // Create collection record
+          await storage.createCollection({
+            customerId: customer.id,
+            invoiceNumber: invoiceNo,
+            invoiceDate: new Date().toISOString(),
+            dueDate: dueDate,
+            originalAmount: amount,
+            outstandingAmount: amount,
+            status: 'pending',
+            createdBy: req.session.userId!,
+          });
+
+          successRecords++;
+        } catch (error: any) {
+          failedRecords++;
+          errors.push({ row: row, error: error.message });
+        }
       }
 
-      // Update file status
-      await storage.updateUploadedFile(uploadedFile.id, { status: "processed" });
-
       res.json({
-        message: "File uploaded and processed successfully",
-        fileId: uploadedFile.id,
-        rowCount: jsonData.length,
-        preview: jsonData.slice(0, 5), // First 5 rows for preview
+        message: "File processed successfully",
+        totalRecords: jsonData.length,
+        successRecords,
+        failedRecords,
+        errors: errors.slice(0, 5), // First 5 errors for debugging
       });
     } catch (error: any) {
       console.error("Excel upload error:", error);

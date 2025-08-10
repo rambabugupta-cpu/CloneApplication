@@ -290,8 +290,10 @@ Priya Sharma,CUST002,9876543211,250000,INV-2024-002,05/01/2024,04/02/2024,Sharma
                   <AlertTitle>Import Errors</AlertTitle>
                   <AlertDescription>
                     <ul className="list-disc list-inside mt-2">
-                      {importResult.errors.slice(0, 5).map((error: string, index: number) => (
-                        <li key={index} className="text-sm">{error}</li>
+                      {importResult.errors.slice(0, 5).map((error: any, index: number) => (
+                        <li key={index} className="text-sm">
+                          {typeof error === 'string' ? error : error.error || 'Unknown error'}
+                        </li>
                       ))}
                     </ul>
                     {importResult.errors.length > 5 && (
