@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { ThemeSwitcher } from '@/components/ThemeSwitcher';
 
 const Auth = () => {
   const { user, loading, signIn, signUp } = useAuth();
@@ -74,7 +75,7 @@ const Auth = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="min-h-screen flex items-center justify-center bg-background transition-colors duration-300">
         <div className="text-center">
           <h2 className="text-lg font-semibold">Loading...</h2>
         </div>
@@ -83,11 +84,15 @@ const Auth = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 transition-colors duration-300">
+      <div className="w-full max-w-md">
+        <div className="flex justify-end mb-4">
+          <ThemeSwitcher />
+        </div>
+        <Card className="w-full transition-all duration-300 border-2 hover:border-primary/20">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center">Collection Management</CardTitle>
-          <CardDescription className="text-center">
+          <CardTitle className="text-2xl text-center transition-colors duration-300">Collection Management</CardTitle>
+          <CardDescription className="text-center transition-colors duration-300">
             Sign in to your account or create a new one
           </CardDescription>
         </CardHeader>
@@ -183,6 +188,7 @@ const Auth = () => {
           </Tabs>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 };

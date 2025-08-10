@@ -4,6 +4,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useToast } from "@/hooks/use-toast";
 import UserApprovalPanel from "@/components/UserApprovalPanel";
+import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { BarChart3, Upload, Users, Settings, FileText, DollarSign } from "lucide-react";
 
 const Index = () => {
   const { user, signOut } = useAuth();
@@ -26,19 +28,22 @@ const Index = () => {
       <div className="container mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold">Collection Management System</h1>
-            <p className="text-muted-foreground">Welcome back, {user?.email}</p>
+            <h1 className="text-3xl font-bold transition-colors duration-300">Collection Management System</h1>
+            <p className="text-muted-foreground transition-colors duration-300">Welcome back, {user?.email}</p>
             {role && (
               <div className="flex items-center gap-2 mt-2">
-                <span className="text-sm bg-primary text-primary-foreground px-2 py-1 rounded">
+                <span className="text-sm bg-primary text-primary-foreground px-2 py-1 rounded transition-all duration-300">
                   {role.charAt(0).toUpperCase() + role.slice(1)}
                 </span>
               </div>
             )}
           </div>
-          <Button variant="outline" onClick={handleSignOut}>
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-3">
+            <ThemeSwitcher />
+            <Button variant="outline" onClick={handleSignOut} className="transition-all duration-300 hover:scale-105">
+              Sign Out
+            </Button>
+          </div>
         </div>
         
         {isAdmin && (
@@ -48,41 +53,143 @@ const Index = () => {
         )}
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card>
+          <Card className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-2 hover:border-primary/50" onClick={() => toast({
+            title: "Dashboard",
+            description: "Dashboard feature coming soon! This will show collections overview and analytics."
+          })}>
             <CardHeader>
-              <CardTitle>Dashboard</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="h-5 w-5 text-primary transition-colors duration-300" />
+                Dashboard
+              </CardTitle>
               <CardDescription>View collections overview</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
                 Track outstanding payments, follow-ups, and more.
               </p>
+              <div className="mt-4 flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                <span className="text-xs text-muted-foreground">Ready to use</span>
+              </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-2 hover:border-primary/50" onClick={() => toast({
+            title: "Import Data",
+            description: "Data import feature coming soon! Upload Excel files from Tally to import payment data."
+          })}>
             <CardHeader>
-              <CardTitle>Import Data</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Upload className="h-5 w-5 text-primary transition-colors duration-300" />
+                Import Data
+              </CardTitle>
               <CardDescription>Upload Excel files from Tally</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
                 Import outstanding payment data directly from Excel.
               </p>
+              <div className="mt-4 flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-yellow-500"></div>
+                <span className="text-xs text-muted-foreground">In development</span>
+              </div>
             </CardContent>
           </Card>
           
-          <Card>
+          <Card className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-2 hover:border-primary/50" onClick={() => toast({
+            title: "Customer Management",
+            description: "Customer management feature coming soon! Manage customer records and payment history."
+          })}>
             <CardHeader>
-              <CardTitle>Customer Management</CardTitle>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-primary transition-colors duration-300" />
+                Customer Management
+              </CardTitle>
               <CardDescription>Manage customer records</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
                 View and update customer information and payment history.
               </p>
+              <div className="mt-4 flex items-center gap-2">
+                <div className="h-2 w-2 rounded-full bg-yellow-500"></div>
+                <span className="text-xs text-muted-foreground">In development</span>
+              </div>
             </CardContent>
           </Card>
+
+          {(isAdmin || isEmployee) && (
+            <>
+              <Card className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-2 hover:border-primary/50" onClick={() => toast({
+                title: "Reports",
+                description: "Reports feature coming soon! Generate detailed collection reports and analytics."
+              })}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-primary transition-colors duration-300" />
+                    Reports
+                  </CardTitle>
+                  <CardDescription>Generate collection reports</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Create detailed reports on collections and payment trends.
+                  </p>
+                  <div className="mt-4 flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                    <span className="text-xs text-muted-foreground">Planned</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-2 hover:border-primary/50" onClick={() => toast({
+                title: "Payment Tracking",
+                description: "Payment tracking feature coming soon! Monitor payment status and send reminders."
+              })}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-primary transition-colors duration-300" />
+                    Payment Tracking
+                  </CardTitle>
+                  <CardDescription>Monitor payment status</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    Track payment status and send automated reminders.
+                  </p>
+                  <div className="mt-4 flex items-center gap-2">
+                    <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                    <span className="text-xs text-muted-foreground">Planned</span>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          )}
+
+          {isAdmin && (
+            <Card className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-2 hover:border-primary/50" onClick={() => toast({
+              title: "System Settings",
+              description: "Settings feature coming soon! Configure system preferences and user permissions."
+            })}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Settings className="h-5 w-5 text-primary transition-colors duration-300" />
+                  System Settings
+                </CardTitle>
+                <CardDescription>Configure system preferences</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Manage system settings, user roles, and permissions.
+                </p>
+                <div className="mt-4 flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-500"></div>
+                  <span className="text-xs text-muted-foreground">Planned</span>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
         
         {!isAdmin && !isEmployee && (
