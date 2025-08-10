@@ -4,6 +4,7 @@ import { storage } from "./storage";
 import session from "express-session";
 import pgSimple from "connect-pg-simple";
 import { pool } from "./db";
+import cors from "cors";
 import { insertUserSchema, insertProfileSchema, insertUserRoleSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -15,6 +16,14 @@ declare module "express-session" {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Configure CORS for proper credential handling
+  app.use(cors({
+    origin: true, // Allow requests from same origin
+    credentials: true, // Allow credentials (cookies)
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+  }));
+
   // Create PostgreSQL session store
   const PostgreSQLStore = pgSimple(session);
   
@@ -27,25 +36,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
     secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
     resave: false,
     saveUninitialized: false,
-    name: 'connect.sid',
+    name: 'sessionid', // Change name to avoid conflicts
+    rolling: true, // Reset expiry on each request
     cookie: {
       secure: false, // Set to true in production with HTTPS
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       sameSite: 'lax', // Important for modern browsers
+      path: '/', // Ensure cookie path is correct
     },
   }));
 
   // Auth middleware to check if user is authenticated
   const requireAuth = (req: any, res: any, next: any) => {
-    // Debug session info for browser requests
-    console.log('Browser auth check:', {
-      sessionID: req.sessionID,
-      userId: req.session?.userId,
-      cookies: req.headers.cookie,
-      userAgent: req.headers['user-agent']?.substring(0, 50)
-    });
-    
     if (!req.session.userId) {
       return res.status(401).json({ error: "Authentication required" });
     }
@@ -94,7 +97,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/auth/signin", async (req, res) => {
     try {
       const { email, password } = req.body;
-      console.log('Signin attempt from browser for:', email);
       
       if (!email || !password) {
         return res.status(400).json({ error: "Email and password required" });
@@ -113,7 +115,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       // Create session
       req.session.userId = user.id;
-      console.log('Session created with userId:', user.id, 'sessionID:', req.sessionID);
       
       res.json({
         user: { id: user.id, email: user.email, name: user.name },
