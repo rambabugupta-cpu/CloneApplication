@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import session from "express-session";
+import pgSimple from "connect-pg-simple";
+import { pool } from "./db";
 import { insertUserSchema, insertProfileSchema, insertUserRoleSchema } from "@shared/schema";
 import { z } from "zod";
 
@@ -13,8 +15,15 @@ declare module "express-session" {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Configure session middleware
+  // Create PostgreSQL session store
+  const PostgreSQLStore = pgSimple(session);
+  
+  // Configure session middleware with PostgreSQL store
   app.use(session({
+    store: new PostgreSQLStore({
+      pool: pool,
+      tableName: 'session', // Use the default table name
+    }),
     secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
     resave: false,
     saveUninitialized: false,
@@ -29,10 +38,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Auth middleware to check if user is authenticated
   const requireAuth = (req: any, res: any, next: any) => {
-    console.log('Auth check - Session ID:', req.sessionID);
-    console.log('Auth check - Session data:', req.session);
-    console.log('Auth check - User ID:', req.session?.userId);
-    
     if (!req.session.userId) {
       return res.status(401).json({ error: "Authentication required" });
     }
