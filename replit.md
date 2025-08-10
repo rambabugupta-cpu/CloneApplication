@@ -1,29 +1,63 @@
-# Collection Management System
+# Tally Collection Management System
 
 ## Overview
-A full-stack web application for managing collections, user authentication, and administrative functions. Successfully migrated from Lovable (Supabase) to Replit's environment using PostgreSQL with Drizzle ORM.
+A comprehensive collection management system designed for businesses using Tally software. The system automates the sundry debtors collection process with full transparency, enabling owners to monitor staff activities and track collection performance without manual intervention. Built for 1000+ users with real-time updates and high security.
 
 ## Architecture
 - **Frontend**: React with TypeScript, Tailwind CSS, shadcn/ui components
-- **Backend**: Express.js with TypeScript
+- **Backend**: Express.js with TypeScript, Service Layer Architecture
 - **Database**: PostgreSQL with Drizzle ORM
 - **Authentication**: Session-based authentication with bcrypt password hashing
-- **Routing**: React Router DOM on frontend, Express routes on backend
+- **Real-time**: WebSocket support for live updates
+- **Security**: Role-based access control, audit logging, approval workflows
+- **Integration**: Tally Excel import with validation and matching
 
 ## Key Features
-- User registration and authentication
-- Role-based access control (admin, employee, customer)
-- User approval workflow for new registrations
-- Protected routes and admin panels
-- Responsive UI with dark/light theme support
+
+### Core Functionality
+- **Tally Integration**: Direct Excel import from Tally software for sundry debtors
+- **Automated Collection Process**: Streamlined workflow from import to collection
+- **Real-time Monitoring**: Track staff activities and collection progress live
+- **Approval Workflow**: Admin approval required for all payment recordings
+- **Customer Portal**: Separate access for customers to view their outstanding amounts
+
+### User Roles & Permissions
+- **Owner**: Full system access, all reports, approval authority
+- **Admin**: User management, payment approvals, system configuration
+- **Staff**: Record collections, customer communication, follow-ups
+- **Customer**: View outstanding amounts, payment history
+
+### Collection Management
+- Automatic customer matching during Excel import
+- Flexible column mapping for various Excel formats
+- Outstanding amount tracking with aging analysis
+- Payment promise tracking and reminders
+- Escalation levels for overdue collections
+
+### Security & Compliance
+- High-level security with bcrypt password hashing
+- Complete audit trail for all actions
+- Role-based access control (RBAC)
+- Session-based authentication
+- IP tracking and rate limiting
+
+### Reporting & Analytics
+- Outstanding amount reports by customer
+- Collection performance metrics
+- Staff productivity tracking
+- Payment trend analysis
+- Aging analysis reports
+- Promise vs actual payment tracking
 
 ## Database Schema
-- `users`: Core user authentication data (id, email, name, password_hash)
-- `profiles`: Extended user information and approval status
-- `user_roles`: Role assignments for access control (admin, employee, customer)
-- `collections`: Main collection records (invoices, amounts, customer info, status, priority)
-- `payments`: Payment tracking and history (amount, method, date, reference)
-- `communications`: Communication logs (emails, calls, outcomes, next actions)
+- `users`: Core user authentication data (UUID, email, fullName, password_hash, role, status)
+- `customers`: Detailed customer information with Tally codes, GST, contact details
+- `collections`: Outstanding amounts to be collected (invoices, amounts, status, aging)
+- `payments`: Payment tracking with approval workflow (pending/approved/rejected)
+- `communications`: All customer interactions (calls, emails, SMS, visits)
+- `import_batches`: Excel import tracking and validation
+- `notifications`: System notifications for staff and admins
+- `audit_logs`: Complete audit trail for all actions
 - `session`: PostgreSQL session store for authentication
 
 ## Migration Details

@@ -1,264 +1,255 @@
-import { storage } from "./storage";
+import { db } from "./db";
+import { users, customers, collections } from "@shared/schema";
+import bcrypt from "bcrypt";
+import { sql } from "drizzle-orm";
 
-export async function seedDatabase() {
+async function clearDatabase() {
+  console.log("Clearing existing data...");
+  
+  // Clear tables in reverse dependency order
+  await db.delete(collections).execute();
+  await db.delete(customers).execute();
+  await db.delete(users).execute();
+}
+
+async function seedDatabase() {
   try {
-    // Check if admin user already exists
-    const existingAdmin = await storage.getUserByEmail("admin@example.com");
+    console.log("Starting database seed...");
     
-    if (!existingAdmin) {
-      console.log("Creating demo users and data...");
-      
-      // Create admin user
-      const adminUser = await storage.createUser({
-        email: "admin@example.com",
-        name: "Admin User",
-        passwordHash: "admin123",
-      });
-
-      await storage.createProfile({
-        id: adminUser.id,
-        name: "Admin User",
-        email: "admin@example.com",
-        status: "approved",
-      });
-
-      await storage.assignUserRole({
-        userId: adminUser.id,
-        role: "admin",
-      });
-
-      // Create employee user
-      const employeeUser = await storage.createUser({
-        email: "employee@example.com",
-        name: "Sarah Johnson",
-        passwordHash: "employee123",
-      });
-
-      await storage.createProfile({
-        id: employeeUser.id,
-        name: "Sarah Johnson",
-        email: "employee@example.com",
-        status: "approved",
-      });
-
-      await storage.assignUserRole({
-        userId: employeeUser.id,
-        role: "employee",
-      });
-
-      // Create customer user
-      const customerUser = await storage.createUser({
-        email: "customer@example.com",
-        name: "John Smith",
-        passwordHash: "customer123",
-      });
-
-      await storage.createProfile({
-        id: customerUser.id,
-        name: "John Smith",
-        email: "customer@example.com",
-        status: "approved",
-      });
-
-      await storage.assignUserRole({
-        userId: customerUser.id,
-        role: "customer",
-      });
-
-      // Create pending customer
-      const pendingUser = await storage.createUser({
-        email: "pending@example.com",
-        name: "Jane Doe",
-        passwordHash: "pending123",
-      });
-
-      await storage.createProfile({
-        id: pendingUser.id,
-        name: "Jane Doe",
-        email: "pending@example.com",
-        mobile: "+1-555-0123",
-        status: "pending",
-      });
-
-      await storage.assignUserRole({
-        userId: pendingUser.id,
-        role: "customer",
-      });
-
-      // Create sample collection data
-      const collections = [
-        {
-          customerId: customerUser.id,
-          customerName: "Acme Corporation",
-          customerEmail: "billing@acme.com",
-          customerPhone: "+1-555-0100",
-          invoiceNumber: "INV-2024-001",
-          invoiceDate: new Date("2024-01-15"),
-          dueDate: new Date("2024-02-15"),
-          originalAmount: 125000, // $1,250.00
-          outstandingAmount: 75000, // $750.00
-          paidAmount: 50000, // $500.00
-          status: "outstanding",
-          priority: "high",
-          description: "Q4 2023 consulting services",
-          assignedTo: employeeUser.id,
-          lastContactDate: new Date("2024-02-10"),
-          nextFollowupDate: new Date("2024-02-20"),
-        },
-        {
-          customerId: null,
-          customerName: "TechStart Inc",
-          customerEmail: "finance@techstart.com",
-          customerPhone: "+1-555-0200",
-          invoiceNumber: "INV-2024-002",
-          invoiceDate: new Date("2024-02-01"),
-          dueDate: new Date("2024-01-25"), // overdue
-          originalAmount: 89000, // $890.00
-          outstandingAmount: 89000, // $890.00
-          paidAmount: 0,
-          status: "overdue",
-          priority: "high",
-          description: "Software development services",
-          assignedTo: employeeUser.id,
-          lastContactDate: new Date("2024-02-08"),
-          nextFollowupDate: new Date("2024-02-12"),
-        },
-        {
-          customerId: null,
-          customerName: "Global Manufacturing",
-          customerEmail: "ap@globalmfg.com",
-          customerPhone: "+1-555-0300",
-          invoiceNumber: "INV-2024-003",
-          invoiceDate: new Date("2024-02-05"),
-          dueDate: new Date("2024-03-05"),
-          originalAmount: 234000, // $2,340.00
-          outstandingAmount: 0,
-          paidAmount: 234000, // $2,340.00
-          status: "paid",
-          priority: "medium",
-          description: "Equipment maintenance contract",
-          assignedTo: employeeUser.id,
-          lastContactDate: new Date("2024-02-15"),
-          nextFollowupDate: null,
-        },
-        {
-          customerId: null,
-          customerName: "Retail Solutions LLC",
-          customerEmail: "accounts@retailsolutions.com",
-          customerPhone: "+1-555-0400",
-          invoiceNumber: "INV-2024-004",
-          invoiceDate: new Date("2024-02-10"),
-          dueDate: new Date("2024-03-12"),
-          originalAmount: 156000, // $1,560.00
-          outstandingAmount: 156000, // $1,560.00
-          paidAmount: 0,
-          status: "outstanding",
-          priority: "medium",
-          description: "POS system implementation",
-          assignedTo: adminUser.id,
-          lastContactDate: null,
-          nextFollowupDate: new Date("2024-02-25"),
-        },
-        {
-          customerId: null,
-          customerName: "Healthcare Partners",
-          customerEmail: "billing@healthcarepartners.com",
-          customerPhone: "+1-555-0500",
-          invoiceNumber: "INV-2024-005",
-          invoiceDate: new Date("2024-01-28"),
-          dueDate: new Date("2024-02-28"),
-          originalAmount: 78000, // $780.00
-          outstandingAmount: 39000, // $390.00
-          paidAmount: 39000, // $390.00
-          status: "partial",
-          priority: "low",
-          description: "Monthly support services",
-          assignedTo: employeeUser.id,
-          lastContactDate: new Date("2024-02-05"),
-          nextFollowupDate: new Date("2024-02-28"),
-        }
-      ];
-
-      for (const collectionData of collections) {
-        const collection = await storage.createCollection(collectionData);
-
-        // Add sample payments for paid/partial collections
-        if (collection.status === "paid" && collection.paidAmount && collection.paidAmount > 0) {
-          await storage.createPayment({
-            collectionId: collection.id,
-            amount: collection.paidAmount,
-            paymentMethod: "bank_transfer",
-            paymentDate: new Date("2024-02-15"),
-            referenceNumber: `PAY-${collection.invoiceNumber}`,
-            notes: "Full payment received via bank transfer",
-            recordedBy: employeeUser.id,
-          });
-        } else if (collection.status === "partial" && collection.paidAmount && collection.paidAmount > 0) {
-          await storage.createPayment({
-            collectionId: collection.id,
-            amount: collection.paidAmount,
-            paymentMethod: "check",
-            paymentDate: new Date("2024-02-05"),
-            referenceNumber: `CHK-001-${collection.id}`,
-            notes: "Partial payment via check",
-            recordedBy: employeeUser.id,
-          });
-        }
-
-        // Add sample communications
-        if (collection.lastContactDate) {
-          await storage.createCommunication({
-            collectionId: collection.id,
-            userId: collection.assignedTo || employeeUser.id,
-            type: "email",
-            recipient: collection.customerEmail,
-            subject: `Payment Reminder - Invoice ${collection.invoiceNumber}`,
-            message: `Dear ${collection.customerName}, This is a friendly reminder about your outstanding invoice ${collection.invoiceNumber} with a balance of $${(collection.outstandingAmount / 100).toFixed(2)}. Please contact us if you have any questions.`,
-            status: "completed",
-            outcome: collection.status === "overdue" ? "no_response" : "acknowledged",
-            nextAction: collection.status === "overdue" ? "follow_up_call" : "monitor",
-            nextActionDate: collection.nextFollowupDate,
-          });
-        }
-
-        if (collection.status === "overdue") {
-          await storage.createCommunication({
-            collectionId: collection.id,
-            userId: collection.assignedTo || employeeUser.id,
-            type: "call",
-            recipient: collection.customerPhone || "N/A",
-            subject: `Follow-up Call - Invoice ${collection.invoiceNumber}`,
-            message: "Called customer regarding overdue invoice. Left voicemail requesting urgent payment.",
-            status: "completed",
-            outcome: "no_response",
-            nextAction: "legal_notice",
-            nextActionDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
-          });
-        }
-      }
-
-      console.log("Demo data created successfully!");
-      console.log("\n=== Demo Login Credentials ===");
-      console.log("Admin User:");
-      console.log("  Email: admin@example.com");
-      console.log("  Password: admin123");
-      console.log("\nEmployee User:");
-      console.log("  Email: employee@example.com");
-      console.log("  Password: employee123");
-      console.log("\nCustomer User:");
-      console.log("  Email: customer@example.com");
-      console.log("  Password: customer123");
-      console.log("\nPending User (for approval demo):");
-      console.log("  Email: pending@example.com");
-      console.log("  Password: pending123");
-      console.log("\n=== Sample Data ===");
-      console.log("- 5 collection records with various statuses");
-      console.log("- Sample payments and communication logs");
-      console.log("- Realistic financial data for dashboard analytics");
-    } else {
-      console.log("Demo data already exists");
-    }
+    // Clear existing data
+    await clearDatabase();
+    
+    // Create users
+    const passwordHash = await bcrypt.hash("admin123", 12);
+    
+    // Create owner user
+    const [owner] = await db.insert(users).values({
+      email: "owner@example.com",
+      passwordHash,
+      fullName: "System Owner",
+      phoneNumber: "9876543210",
+      role: "owner",
+      status: "active",
+    }).returning();
+    
+    console.log("Created owner user:", owner.email);
+    
+    // Create admin user
+    const [admin] = await db.insert(users).values({
+      email: "admin@example.com",
+      passwordHash,
+      fullName: "Admin User",
+      phoneNumber: "9876543211",
+      role: "admin",
+      status: "active",
+    }).returning();
+    
+    console.log("Created admin user:", admin.email);
+    
+    // Create staff users
+    const staffPasswordHash = await bcrypt.hash("staff123", 12);
+    
+    const [staff1] = await db.insert(users).values({
+      email: "staff1@example.com",
+      passwordHash: staffPasswordHash,
+      fullName: "John Staff",
+      phoneNumber: "9876543212",
+      role: "staff",
+      status: "active",
+      employeeCode: "EMP001",
+      department: "Collections",
+    }).returning();
+    
+    const [staff2] = await db.insert(users).values({
+      email: "staff2@example.com",
+      passwordHash: staffPasswordHash,
+      fullName: "Jane Staff",
+      phoneNumber: "9876543213",
+      role: "staff",
+      status: "active",
+      employeeCode: "EMP002",
+      department: "Collections",
+    }).returning();
+    
+    console.log("Created staff users");
+    
+    // Create customer users
+    const customerPasswordHash = await bcrypt.hash("customer123", 12);
+    
+    const [customerUser1] = await db.insert(users).values({
+      email: "customer1@example.com",
+      passwordHash: customerPasswordHash,
+      fullName: "Rajesh Kumar",
+      phoneNumber: "9876543214",
+      role: "customer",
+      status: "active",
+    }).returning();
+    
+    const [customerUser2] = await db.insert(users).values({
+      email: "customer2@example.com",
+      passwordHash: customerPasswordHash,
+      fullName: "Priya Sharma",
+      phoneNumber: "9876543215",
+      role: "customer",
+      status: "active",
+    }).returning();
+    
+    console.log("Created customer users");
+    
+    // Create customers
+    const [customer1] = await db.insert(customers).values({
+      userId: customerUser1.id,
+      customerCode: "CUST001",
+      companyName: "Kumar Enterprises",
+      primaryContactName: "Rajesh Kumar",
+      primaryPhone: "9876543214",
+      primaryEmail: "customer1@example.com",
+      gstNumber: "29ABCDE1234F1Z5",
+      addressLine1: "123 MG Road",
+      city: "Bangalore",
+      state: "Karnataka",
+      pincode: "560001",
+      creditLimit: 50000000, // 5 lakhs in paise
+      creditDays: 30,
+      assignedTo: staff1.id,
+      isActive: true,
+    }).returning();
+    
+    const [customer2] = await db.insert(customers).values({
+      userId: customerUser2.id,
+      customerCode: "CUST002",
+      companyName: "Sharma Industries",
+      primaryContactName: "Priya Sharma",
+      primaryPhone: "9876543215",
+      primaryEmail: "customer2@example.com",
+      gstNumber: "27ABCDE5678G2H6",
+      addressLine1: "456 Linking Road",
+      city: "Mumbai",
+      state: "Maharashtra",
+      pincode: "400050",
+      creditLimit: 100000000, // 10 lakhs in paise
+      creditDays: 45,
+      assignedTo: staff2.id,
+      isActive: true,
+    }).returning();
+    
+    const [customer3] = await db.insert(customers).values({
+      customerCode: "CUST003",
+      companyName: "Tech Solutions Pvt Ltd",
+      primaryContactName: "Amit Patel",
+      primaryPhone: "9876543216",
+      primaryEmail: "amit@techsolutions.com",
+      addressLine1: "789 Sector 5",
+      city: "Noida",
+      state: "Uttar Pradesh",
+      pincode: "201301",
+      creditLimit: 75000000, // 7.5 lakhs in paise
+      creditDays: 60,
+      assignedTo: staff1.id,
+      isActive: true,
+    }).returning();
+    
+    console.log("Created customers");
+    
+    // Create collections with various statuses
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixtyDaysAgo = new Date(today.getTime() - 60 * 24 * 60 * 60 * 1000);
+    const ninetyDaysAgo = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const thirtyDaysFromNow = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+    
+    // Overdue collection
+    await db.insert(collections).values({
+      customerId: customer1.id,
+      invoiceNumber: "INV-2024-001",
+      invoiceDate: ninetyDaysAgo.toISOString().split('T')[0],
+      dueDate: sixtyDaysAgo.toISOString().split('T')[0],
+      originalAmount: 15000000, // 1.5 lakhs in paise
+      outstandingAmount: 15000000,
+      paidAmount: 0,
+      status: "overdue",
+      agingDays: 60,
+      assignedTo: staff1.id,
+      escalationLevel: 2,
+      notes: "Multiple follow-ups done, customer promised payment by month end",
+    });
+    
+    // Partial payment collection
+    await db.insert(collections).values({
+      customerId: customer2.id,
+      invoiceNumber: "INV-2024-002",
+      invoiceDate: sixtyDaysAgo.toISOString().split('T')[0],
+      dueDate: thirtyDaysAgo.toISOString().split('T')[0],
+      originalAmount: 25000000, // 2.5 lakhs in paise
+      outstandingAmount: 10000000, // 1 lakh outstanding
+      paidAmount: 15000000, // 1.5 lakhs paid
+      status: "partial",
+      agingDays: 30,
+      assignedTo: staff2.id,
+      promisedAmount: 10000000,
+      promisedDate: thirtyDaysFromNow.toISOString().split('T')[0],
+      notes: "Partial payment received, balance promised next month",
+    });
+    
+    // Pending collection
+    await db.insert(collections).values({
+      customerId: customer3.id,
+      invoiceNumber: "INV-2024-003",
+      invoiceDate: today.toISOString().split('T')[0],
+      dueDate: thirtyDaysFromNow.toISOString().split('T')[0],
+      originalAmount: 8500000, // 85,000 in paise
+      outstandingAmount: 8500000,
+      paidAmount: 0,
+      status: "pending",
+      agingDays: 0,
+      assignedTo: staff1.id,
+      notes: "New invoice, payment expected on time",
+    });
+    
+    // More collections for dashboard stats
+    await db.insert(collections).values({
+      customerId: customer1.id,
+      invoiceNumber: "INV-2024-004",
+      invoiceDate: thirtyDaysAgo.toISOString().split('T')[0],
+      dueDate: today.toISOString().split('T')[0],
+      originalAmount: 5000000, // 50,000 in paise
+      outstandingAmount: 5000000,
+      paidAmount: 0,
+      status: "overdue",
+      agingDays: 1,
+      assignedTo: staff1.id,
+    });
+    
+    await db.insert(collections).values({
+      customerId: customer2.id,
+      invoiceNumber: "INV-2024-005",
+      invoiceDate: thirtyDaysAgo.toISOString().split('T')[0],
+      dueDate: today.toISOString().split('T')[0],
+      originalAmount: 12000000, // 1.2 lakhs in paise
+      outstandingAmount: 0,
+      paidAmount: 12000000,
+      status: "paid",
+      agingDays: 0,
+      assignedTo: staff2.id,
+      notes: "Full payment received",
+    });
+    
+    console.log("Created sample collections");
+    console.log("Database seed completed successfully!");
+    
+    console.log("\n=== Login Credentials ===");
+    console.log("Owner: owner@example.com / admin123");
+    console.log("Admin: admin@example.com / admin123");
+    console.log("Staff: staff1@example.com / staff123");
+    console.log("Staff: staff2@example.com / staff123");
+    console.log("Customer: customer1@example.com / customer123");
+    console.log("Customer: customer2@example.com / customer123");
+    console.log("========================\n");
+    
   } catch (error) {
     console.error("Error seeding database:", error);
+    throw error;
   }
 }
+
+export { seedDatabase };
