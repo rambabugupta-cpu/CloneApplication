@@ -18,13 +18,13 @@ A full-stack web application for managing collections, user authentication, and 
 - Responsive UI with dark/light theme support
 
 ## Database Schema
-- `users`: Core user authentication data
+- `users`: Core user authentication data (id, email, name, password_hash)
 - `profiles`: Extended user information and approval status
-- `user_roles`: Role assignments for access control
-- `payments`: Payment tracking
-- `communications`: Communication logs
-- `uploaded_files`: File management
-- `excel_data`: Excel data processing
+- `user_roles`: Role assignments for access control (admin, employee, customer)
+- `collections`: Main collection records (invoices, amounts, customer info, status, priority)
+- `payments`: Payment tracking and history (amount, method, date, reference)
+- `communications`: Communication logs (emails, calls, outcomes, next actions)
+- `session`: PostgreSQL session store for authentication
 
 ## Migration Details
 **Date**: August 10, 2025
@@ -39,9 +39,22 @@ A full-stack web application for managing collections, user authentication, and 
 - Created admin user seeding functionality
 - Removed all Supabase dependencies and configurations
 
-## Default Admin Credentials
+## Demo User Credentials
+**Admin User:**
 - Email: admin@example.com
 - Password: admin123
+
+**Employee User:**
+- Email: employee@example.com  
+- Password: employee123
+
+**Customer User:**
+- Email: customer@example.com
+- Password: customer123
+
+**Pending User (for approval demo):**
+- Email: pending@example.com
+- Password: pending123
 
 ## Development Setup
 - Run `npm run dev` to start the development server
@@ -49,12 +62,32 @@ A full-stack web application for managing collections, user authentication, and 
 - Admin user is automatically seeded on first startup
 
 ## API Endpoints
+**Authentication:**
 - `POST /api/auth/signup` - User registration
 - `POST /api/auth/signin` - User login
 - `POST /api/auth/signout` - User logout
 - `GET /api/auth/me` - Get current user info
+
+**User Management:**
 - `GET /api/users/pending` - Get pending user approvals (admin only)
 - `POST /api/users/:id/approve` - Approve/reject users (admin only)
+
+**Collections Management:**
+- `GET /api/collections` - Get all collection records
+- `GET /api/collections/:id` - Get specific collection
+- `POST /api/collections` - Create new collection record
+- `PUT /api/collections/:id` - Update collection record
+
+**Payments:**
+- `GET /api/collections/:id/payments` - Get payments for a collection
+- `POST /api/collections/:id/payments` - Record new payment
+
+**Communications:**
+- `GET /api/collections/:id/communications` - Get communication logs
+- `POST /api/collections/:id/communications` - Add communication log
+
+**Analytics:**
+- `GET /api/dashboard/stats` - Get dashboard statistics and trends
 
 ## Security Features
 - Password hashing with bcrypt (12 rounds)
@@ -68,6 +101,16 @@ A full-stack web application for managing collections, user authentication, and 
 - **2025-08-10**: Implemented new authentication system replacing Supabase
 - **2025-08-10**: Added database seeding for admin user creation
 - **2025-08-10**: Migrated user approval system to use REST API
+- **2025-08-10**: Implemented full collection management system with comprehensive features:
+  - Complete Dashboard with real-time analytics and charts
+  - Collections management with CRUD operations
+  - Payment tracking and recording
+  - Communication logs for customer interactions
+  - Role-based navigation and access control
+  - Database schema with collections, payments, and communications tables
+  - Comprehensive seed data with demo users and realistic collection records
+  - Responsive navigation with theme switching
+  - Professional UI with shadcn/ui components and Recharts analytics
 
 ## User Preferences
 - Use TypeScript for all code

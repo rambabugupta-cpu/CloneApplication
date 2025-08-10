@@ -53,24 +53,21 @@ const Index = () => {
         )}
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          <Card className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-2 hover:border-primary/50" onClick={() => toast({
-            title: "Dashboard",
-            description: "Dashboard feature coming soon! This will show collections overview and analytics."
-          })}>
+          <Card className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-2 hover:border-primary/50" onClick={() => window.location.href = '/dashboard'}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <BarChart3 className="h-5 w-5 text-primary transition-colors duration-300" />
                 Dashboard
               </CardTitle>
-              <CardDescription>View collections overview</CardDescription>
+              <CardDescription>View collections overview and analytics</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Track outstanding payments, follow-ups, and more.
+                Track outstanding payments, follow-ups, and real-time analytics.
               </p>
               <div className="mt-4 flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                <span className="text-xs text-muted-foreground">Ready to use</span>
+                <span className="text-xs text-muted-foreground">Available now</span>
               </div>
             </CardContent>
           </Card>
@@ -97,24 +94,21 @@ const Index = () => {
             </CardContent>
           </Card>
           
-          <Card className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-2 hover:border-primary/50" onClick={() => toast({
-            title: "Customer Management",
-            description: "Customer management feature coming soon! Manage customer records and payment history."
-          })}>
+          <Card className="cursor-pointer transition-all duration-300 hover:scale-105 hover:shadow-lg border-2 hover:border-primary/50" onClick={() => window.location.href = '/collections'}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5 text-primary transition-colors duration-300" />
-                Customer Management
+                Collections Management
               </CardTitle>
-              <CardDescription>Manage customer records</CardDescription>
+              <CardDescription>Manage customer collections and invoices</CardDescription>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                View and update customer information and payment history.
+                View and manage outstanding payments, invoices, and customer communications.
               </p>
               <div className="mt-4 flex items-center gap-2">
-                <div className="h-2 w-2 rounded-full bg-yellow-500"></div>
-                <span className="text-xs text-muted-foreground">In development</span>
+                <div className="h-2 w-2 rounded-full bg-green-500"></div>
+                <span className="text-xs text-muted-foreground">Available now</span>
               </div>
             </CardContent>
           </Card>

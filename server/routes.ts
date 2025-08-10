@@ -5,7 +5,7 @@ import session from "express-session";
 import pgSimple from "connect-pg-simple";
 import { pool } from "./db";
 import cors from "cors";
-import { insertUserSchema, insertProfileSchema, insertUserRoleSchema } from "@shared/schema";
+import { insertUserSchema, insertProfileSchema, insertUserRoleSchema, insertCollectionSchema, insertPaymentSchema, insertCommunicationSchema } from "@shared/schema";
 import { z } from "zod";
 
 // Session interface extension
@@ -230,6 +230,124 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error: any) {
       console.error("Send email error:", error);
       res.status(500).json({ error: "Failed to send email" });
+    }
+  });
+
+  // Collections API Routes
+  app.get("/api/collections", requireAuth, async (req, res) => {
+    try {
+      const collections = await storage.getCollections();
+      res.json(collections);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/collections/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const collection = await storage.getCollection(id);
+      if (!collection) {
+        return res.status(404).json({ error: "Collection not found" });
+      }
+      res.json(collection);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/collections", requireAuth, async (req, res) => {
+    try {
+      const collectionData = insertCollectionSchema.parse(req.body);
+      const collection = await storage.createCollection(collectionData);
+      res.status(201).json(collection);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.put("/api/collections/:id", requireAuth, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const updates = req.body;
+      const collection = await storage.updateCollection(id, updates);
+      if (!collection) {
+        return res.status(404).json({ error: "Collection not found" });
+      }
+      res.json(collection);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Payments API Routes
+  app.get("/api/collections/:id/payments", requireAuth, async (req, res) => {
+    try {
+      const collectionId = parseInt(req.params.id);
+      const payments = await storage.getPaymentsByCollection(collectionId);
+      res.json(payments);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/collections/:id/payments", requireAuth, async (req, res) => {
+    try {
+      const collectionId = parseInt(req.params.id);
+      const paymentData = insertPaymentSchema.parse({
+        ...req.body,
+        collectionId,
+        recordedBy: req.session.userId,
+      });
+      const payment = await storage.createPayment(paymentData);
+      res.status(201).json(payment);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Communications API Routes
+  app.get("/api/collections/:id/communications", requireAuth, async (req, res) => {
+    try {
+      const collectionId = parseInt(req.params.id);
+      const communications = await storage.getCommunicationsByCollection(collectionId);
+      res.json(communications);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/collections/:id/communications", requireAuth, async (req, res) => {
+    try {
+      const collectionId = parseInt(req.params.id);
+      const communicationData = insertCommunicationSchema.parse({
+        ...req.body,
+        collectionId,
+        userId: req.session.userId,
+      });
+      const communication = await storage.createCommunication(communicationData);
+      res.status(201).json(communication);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: "Invalid data", details: error.errors });
+      }
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Dashboard API Routes
+  app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
+    try {
+      const stats = await storage.getDashboardStats();
+      res.json(stats);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
     }
   });
 
