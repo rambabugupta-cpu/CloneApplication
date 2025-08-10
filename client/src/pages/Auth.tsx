@@ -39,9 +39,9 @@ const Auth = () => {
         title: 'Sign in failed',
         description: error.message
       });
+      setIsLoading(false);
     }
-    
-    setIsLoading(false);
+    // Don't set isLoading to false if successful, as we'll redirect
   };
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
