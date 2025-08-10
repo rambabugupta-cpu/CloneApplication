@@ -5,7 +5,9 @@ import session from "express-session";
 import pgSimple from "connect-pg-simple";
 import { pool } from "./db";
 import cors from "cors";
-import { insertUserSchema, insertProfileSchema, insertUserRoleSchema, insertCollectionSchema, insertPaymentSchema, insertCommunicationSchema } from "@shared/schema";
+import { insertUserSchema, insertProfileSchema, insertUserRoleSchema, insertCollectionSchema, insertPaymentSchema, insertCommunicationSchema, insertUploadedFileSchema, insertExcelDataSchema } from "@shared/schema";
+import multer from "multer";
+import xlsx from "xlsx";
 import { z } from "zod";
 
 // Session interface extension
@@ -14,6 +16,22 @@ declare module "express-session" {
     userId: string;
   }
 }
+
+// Configure multer for file uploads
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  },
+  fileFilter: (req, file, cb) => {
+    if (file.mimetype === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+        file.mimetype === 'application/vnd.ms-excel') {
+      cb(null, true);
+    } else {
+      cb(new Error('Only Excel files are allowed'));
+    }
+  }
+});
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Configure CORS for proper credential handling
@@ -347,6 +365,85 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const stats = await storage.getDashboardStats();
       res.json(stats);
     } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Excel Import API Routes
+  app.post("/api/excel/upload", requireAuth, upload.single('excel'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded" });
+      }
+
+      // Save file metadata to database
+      const uploadedFile = await storage.createUploadedFile({
+        userId: req.session.userId!,
+        filename: `${Date.now()}_${req.file.originalname}`,
+        originalName: req.file.originalname,
+        mimeType: req.file.mimetype,
+        fileSize: req.file.size,
+        status: "processing",
+      });
+
+      // Parse Excel file
+      const workbook = xlsx.read(req.file.buffer, { type: 'buffer' });
+      const sheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[sheetName];
+      const jsonData = xlsx.utils.sheet_to_json(worksheet);
+
+      // Store each row in the database
+      for (const row of jsonData) {
+        await storage.createExcelData({
+          fileId: uploadedFile.id,
+          rowData: row as any,
+        });
+      }
+
+      // Update file status
+      await storage.updateUploadedFile(uploadedFile.id, { status: "processed" });
+
+      res.json({
+        message: "File uploaded and processed successfully",
+        fileId: uploadedFile.id,
+        rowCount: jsonData.length,
+        preview: jsonData.slice(0, 5), // First 5 rows for preview
+      });
+    } catch (error: any) {
+      console.error("Excel upload error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/excel/:fileId/import", requireAuth, async (req, res) => {
+    try {
+      const fileId = parseInt(req.params.fileId);
+      const userId = req.session.userId!;
+
+      // Create collection records from Excel data
+      const collections = await storage.createCollectionsFromExcelData(fileId, userId);
+
+      res.json({
+        message: `Successfully imported ${collections.length} collection records`,
+        collections: collections,
+      });
+    } catch (error: any) {
+      console.error("Excel import error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.get("/api/excel/:fileId/preview", requireAuth, async (req, res) => {
+    try {
+      const fileId = parseInt(req.params.fileId);
+      const excelData = await storage.getExcelDataByFileId(fileId);
+      
+      res.json({
+        data: excelData.map(row => row.rowData),
+        count: excelData.length
+      });
+    } catch (error: any) {
+      console.error("Excel preview error:", error);
       res.status(500).json({ error: error.message });
     }
   });

@@ -7,18 +7,24 @@ import {
   collections, 
   payments, 
   communications,
+  uploadedFiles,
+  excelData,
   type User, 
   type Profile,
   type UserRole,
   type Collection,
   type Payment,
   type Communication,
+  type UploadedFile,
+  type ExcelData,
   type InsertUser, 
   type InsertProfile,
   type InsertUserRole,
   type InsertCollection,
   type InsertPayment,
-  type InsertCommunication
+  type InsertCommunication,
+  type InsertUploadedFile,
+  type InsertExcelData
 } from "@shared/schema";
 import bcrypt from "bcrypt";
 
@@ -64,6 +70,16 @@ export interface IStorage {
     totalCount: number;
     monthlyTrend: { month: string; collected: number; outstanding: number }[];
   }>;
+
+  // File upload management
+  createUploadedFile(file: InsertUploadedFile): Promise<UploadedFile>;
+  getUploadedFile(id: number): Promise<UploadedFile | undefined>;
+  updateUploadedFile(id: number, updates: Partial<InsertUploadedFile>): Promise<UploadedFile | undefined>;
+  
+  // Excel data management
+  createExcelData(data: InsertExcelData): Promise<ExcelData>;
+  getExcelDataByFileId(fileId: number): Promise<ExcelData[]>;
+  createCollectionsFromExcelData(fileId: number, userId: string): Promise<Collection[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -211,6 +227,74 @@ export class DatabaseStorage implements IStorage {
       totalCount: stats?.totalCount || 0,
       monthlyTrend: monthlyTrend || []
     };
+  }
+
+  // File upload management
+  async createUploadedFile(file: InsertUploadedFile): Promise<UploadedFile> {
+    const [newFile] = await db.insert(uploadedFiles).values(file).returning();
+    return newFile;
+  }
+
+  async getUploadedFile(id: number): Promise<UploadedFile | undefined> {
+    const [file] = await db.select().from(uploadedFiles).where(eq(uploadedFiles.id, id)).limit(1);
+    return file;
+  }
+
+  async updateUploadedFile(id: number, updates: Partial<InsertUploadedFile>): Promise<UploadedFile | undefined> {
+    const [updated] = await db.update(uploadedFiles)
+      .set(updates)
+      .where(eq(uploadedFiles.id, id))
+      .returning();
+    return updated;
+  }
+
+  // Excel data management
+  async createExcelData(data: InsertExcelData): Promise<ExcelData> {
+    const [newData] = await db.insert(excelData).values(data).returning();
+    return newData;
+  }
+
+  async getExcelDataByFileId(fileId: number): Promise<ExcelData[]> {
+    return await db.select().from(excelData).where(eq(excelData.fileId, fileId));
+  }
+
+  async createCollectionsFromExcelData(fileId: number, userId: string): Promise<Collection[]> {
+    const excelRows = await this.getExcelDataByFileId(fileId);
+    const createdCollections: Collection[] = [];
+
+    for (const row of excelRows) {
+      const rowData = row.rowData as any;
+      
+      // Extract customer name and amount from the Excel data
+      const customerName = rowData['Customer Name'] || rowData['customer_name'] || rowData['Customer'] || '';
+      const amountStr = rowData['Amount'] || rowData['amount'] || '0';
+      
+      // Convert amount to paise (Indian currency subunit)
+      const amount = Math.round(parseFloat(String(amountStr).replace(/[₹,\s]/g, '')) * 100);
+      
+      if (customerName && amount > 0) {
+        const collection = await this.createCollection({
+          customerName,
+          customerEmail: rowData['Email'] || rowData['email'] || `${customerName.toLowerCase().replace(/\s+/g, '.')}@example.com`,
+          customerPhone: rowData['Phone'] || rowData['phone'] || null,
+          invoiceNumber: `INV-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+          invoiceDate: new Date(),
+          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+          originalAmount: amount,
+          outstandingAmount: amount,
+          paidAmount: 0,
+          currency: 'INR',
+          status: 'outstanding',
+          priority: amount > 100000 ? 'high' : amount > 50000 ? 'medium' : 'low', // ₹1000+ = high, ₹500+ = medium
+          description: `Imported from Excel - ${rowData['Description'] || rowData['description'] || 'Payment required'}`,
+          assignedTo: userId,
+        });
+        
+        createdCollections.push(collection);
+      }
+    }
+
+    return createdCollections;
   }
 }
 

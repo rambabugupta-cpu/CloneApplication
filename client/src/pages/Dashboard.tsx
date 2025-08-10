@@ -5,7 +5,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { Calendar, DollarSign, Users, AlertTriangle, TrendingUp, TrendingDown } from "lucide-react";
+import { Calendar, IndianRupee, Users, AlertTriangle, TrendingUp, TrendingDown, Upload } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
 import { Link } from 'react-router-dom';
 import Layout from '@/components/Layout';
@@ -38,9 +38,9 @@ const Dashboard = () => {
   });
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
     }).format(amount / 100);
   };
 
@@ -98,9 +98,17 @@ const Dashboard = () => {
             <h1 className="text-3xl font-bold">Collection Dashboard</h1>
             <p className="text-muted-foreground">Overview of payment collections and outstanding amounts</p>
           </div>
-          <Link to="/collections">
-            <Button>View All Collections</Button>
-          </Link>
+          <div className="flex gap-2">
+            <Link to="/import">
+              <Button variant="outline" className="flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                Import Data
+              </Button>
+            </Link>
+            <Link to="/collections">
+              <Button>View All Collections</Button>
+            </Link>
+          </div>
         </div>
 
         {/* Key Metrics */}
@@ -108,7 +116,7 @@ const Dashboard = () => {
           <Card className="transition-all duration-300 hover:shadow-lg">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Outstanding</CardTitle>
-              <DollarSign className="h-4 w-4 text-red-600" />
+              <IndianRupee className="h-4 w-4 text-red-600" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">

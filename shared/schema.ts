@@ -47,7 +47,7 @@ export const collections = pgTable("collections", {
   originalAmount: integer("original_amount").notNull(), // in cents
   outstandingAmount: integer("outstanding_amount").notNull(), // in cents
   paidAmount: integer("paid_amount").default(0), // in cents
-  currency: text("currency").default("USD"),
+  currency: text("currency").default("INR"),
   status: text("status").default("outstanding"), // outstanding, partial, paid, overdue
   priority: text("priority").default("medium"), // high, medium, low
   description: text("description"),
@@ -140,6 +140,16 @@ export const insertCommunicationSchema = createInsertSchema(communications).omit
   createdAt: true,
 });
 
+export const insertUploadedFileSchema = createInsertSchema(uploadedFiles).omit({
+  id: true,
+  uploadDate: true,
+});
+
+export const insertExcelDataSchema = createInsertSchema(excelData).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -153,5 +163,8 @@ export type Payment = typeof payments.$inferSelect;
 export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Communication = typeof communications.$inferSelect;
 export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
+export type InsertUploadedFile = z.infer<typeof insertUploadedFileSchema>;
 export type UploadedFile = typeof uploadedFiles.$inferSelect;
+
+export type InsertExcelData = z.infer<typeof insertExcelDataSchema>;
 export type ExcelData = typeof excelData.$inferSelect;

@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Search, Plus, Filter, MoreHorizontal, Calendar, DollarSign, Phone, Mail } from "lucide-react";
+import { Search, Plus, Filter, MoreHorizontal, Calendar, IndianRupee, Phone, Mail, Upload } from "lucide-react";
 import { Link } from 'react-router-dom';
 import { format } from "date-fns";
 import Layout from '@/components/Layout';
@@ -92,9 +92,9 @@ const Collections = () => {
   };
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
+    return new Intl.NumberFormat('en-IN', {
       style: 'currency',
-      currency: 'USD',
+      currency: 'INR',
     }).format(amount / 100);
   };
 
@@ -159,14 +159,21 @@ const Collections = () => {
             <h1 className="text-3xl font-bold">Collections Management</h1>
             <p className="text-muted-foreground">Manage outstanding payments and customer collections</p>
           </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                New Collection
+          <div className="flex gap-2">
+            <Link to="/import">
+              <Button variant="outline" className="flex items-center gap-2">
+                <Upload className="h-4 w-4" />
+                Import Excel
               </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+            </Link>
+            <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Collection
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
               <DialogHeader>
                 <DialogTitle>Create New Collection Record</DialogTitle>
                 <DialogDescription>
@@ -209,7 +216,7 @@ const Collections = () => {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="originalAmount">Original Amount ($) *</Label>
+                    <Label htmlFor="originalAmount">Original Amount (₹) *</Label>
                     <Input 
                       id="originalAmount" 
                       name="originalAmount" 
@@ -220,7 +227,7 @@ const Collections = () => {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="outstandingAmount">Outstanding Amount ($) *</Label>
+                    <Label htmlFor="outstandingAmount">Outstanding Amount (₹) *</Label>
                     <Input 
                       id="outstandingAmount" 
                       name="outstandingAmount" 
@@ -272,7 +279,8 @@ const Collections = () => {
                 </div>
               </form>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         </div>
 
         {/* Filters */}
