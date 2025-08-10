@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Collections from "./pages/Collections";
 import Import from "./pages/Import";
 import NotFound from "./pages/NotFound";
+import UserManagement from "./pages/UserManagement";
 import ProtectedRoute from "./components/ProtectedRoute";
 import MainLayout from "./components/MainLayout";
 import { UserProvider } from "@/hooks/use-user";
@@ -43,6 +44,13 @@ const App = () => (
                 <ProtectedRoute>
                   <MainLayout>
                     <Import />
+                  </MainLayout>
+                </ProtectedRoute>
+              } />
+              <Route path="/pending-approvals" element={
+                <ProtectedRoute>
+                  <MainLayout>
+                    <UserManagement />
                   </MainLayout>
                 </ProtectedRoute>
               } />
