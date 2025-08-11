@@ -1364,42 +1364,46 @@ export default function Collections() {
                 <FormField
                   control={paymentForm.control}
                   name="paymentDate"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>Payment Date</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                "w-full pl-3 text-left font-normal",
-                                !field.value && "text-muted-foreground"
-                              )}
-                            >
-                              {field.value ? (
-                                format(new Date(field.value), "PPP")
-                              ) : (
-                                <span>Pick a date</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value ? new Date(field.value) : undefined}
-                            onSelect={(date) => {
-                              field.onChange(date?.toISOString().split('T')[0] || '');
-                            }}
-                            initialFocus
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
+                  render={({ field }) => {
+                    // Use existing payment date or today's date as default
+                    const dateValue = field.value || selectedPaymentForEdit.paymentDate || new Date().toISOString().split('T')[0];
+                    return (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Payment Date</FormLabel>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant="outline"
+                                className={cn(
+                                  "w-full pl-3 text-left font-normal",
+                                  !dateValue && "text-muted-foreground"
+                                )}
+                              >
+                                {dateValue ? (
+                                  format(new Date(dateValue), "PPP")
+                                ) : (
+                                  <span>Pick a date</span>
+                                )}
+                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={dateValue ? new Date(dateValue) : undefined}
+                              onSelect={(date) => {
+                                field.onChange(date?.toISOString().split('T')[0] || '');
+                              }}
+                              initialFocus
+                            />
+                          </PopoverContent>
+                        </Popover>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
                 />
                 <FormField
                   control={paymentForm.control}
@@ -1567,19 +1571,45 @@ export default function Collections() {
                   <FormField
                     control={communicationForm.control}
                     name="promisedDate"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Promised Date</FormLabel>
-                        <FormControl>
-                          <Input 
-                            type="date" 
-                            {...field}
-                            defaultValue={selectedCommunicationForEdit.promisedDate || ''}
-                          />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
+                    render={({ field }) => {
+                      const dateValue = field.value || selectedCommunicationForEdit.promisedDate || '';
+                      return (
+                        <FormItem className="flex flex-col">
+                          <FormLabel>Promised Date</FormLabel>
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <FormControl>
+                                <Button
+                                  variant="outline"
+                                  className={cn(
+                                    "w-full pl-3 text-left font-normal",
+                                    !dateValue && "text-muted-foreground"
+                                  )}
+                                >
+                                  {dateValue ? (
+                                    format(new Date(dateValue), "PPP")
+                                  ) : (
+                                    <span>Pick a date</span>
+                                  )}
+                                  <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                              </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <Calendar
+                                mode="single"
+                                selected={dateValue ? new Date(dateValue) : undefined}
+                                onSelect={(date) => {
+                                  field.onChange(date?.toISOString().split('T')[0] || '');
+                                }}
+                                initialFocus
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          <FormMessage />
+                        </FormItem>
+                      );
+                    }}
                   />
                 </div>
                 <div className="space-y-2">
