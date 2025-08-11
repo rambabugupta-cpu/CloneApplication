@@ -17,10 +17,15 @@ async function clearDatabase() {
 
 async function seedDatabase() {
   try {
-    console.log("Starting database seed...");
+    // Check if database already has data
+    const existingUsers = await db.select().from(users).limit(1);
     
-    // Clear existing data
-    await clearDatabase();
+    if (existingUsers.length > 0) {
+      console.log("Database already seeded, skipping...");
+      return;
+    }
+    
+    console.log("Starting initial database seed...");
     
     // Create users
     const passwordHash = await bcrypt.hash("admin123", 12);
