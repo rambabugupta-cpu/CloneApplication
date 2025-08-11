@@ -350,54 +350,63 @@ export default function Collections() {
                     </div>
                   </TableCell>
                   <TableCell className="py-2">
-                    <div className="space-y-0.5">
-                      <p className="font-bold text-sm">{formatCurrency(collection.outstandingAmount)}</p>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-bold">{formatCurrency(collection.outstandingAmount)}</span>
                       {collection.paidAmount > 0 && (
-                        <p className="text-xs text-green-600">
-                          Paid: {formatCurrency(collection.paidAmount)}
-                        </p>
+                        <>
+                          <span className="text-gray-400">•</span>
+                          <span className="text-xs text-green-600">
+                            P: {formatCurrency(collection.paidAmount)}
+                          </span>
+                        </>
                       )}
                     </div>
                   </TableCell>
                   <TableCell className="py-2">
-                    <div className="space-y-0.5">
+                    <div className="flex items-center gap-2">
                       {getStatusBadge(collection.status)}
                       {collection.agingDays > 0 && (
-                        <p className={`text-xs ${collection.agingDays > 60 ? 'text-red-600' : collection.agingDays > 30 ? 'text-orange-600' : 'text-yellow-600'}`}>
+                        <span className={`text-xs font-medium ${collection.agingDays > 60 ? 'text-red-600' : collection.agingDays > 30 ? 'text-orange-600' : 'text-yellow-600'}`}>
                           {collection.agingDays}d
-                        </p>
+                        </span>
                       )}
                     </div>
                   </TableCell>
                   <TableCell className="py-2">
                     {collection.latestCommunication ? (
-                      <div className="text-xs space-y-0.5">
+                      <div className="flex items-center gap-2 text-xs">
                         {collection.latestCommunication.nextActionDate ? (
-                          <p className="font-medium">
+                          <span className="font-medium">
                             {format(new Date(collection.latestCommunication.nextActionDate), "dd MMM")}
-                          </p>
+                          </span>
                         ) : collection.latestCommunication.promisedDate ? (
-                          <p className="font-medium">
+                          <span className="font-medium">
                             P: {format(new Date(collection.latestCommunication.promisedDate), "dd MMM")}
-                          </p>
+                          </span>
                         ) : (
-                          <p className="text-gray-500">-</p>
+                          <span className="text-gray-500">-</span>
                         )}
                         
                         {collection.latestCommunication.type && (
-                          <p className="text-gray-600 dark:text-gray-400 capitalize">
-                            {collection.latestCommunication.type}
-                          </p>
+                          <>
+                            <span className="text-gray-400">•</span>
+                            <span className="text-gray-600 dark:text-gray-400 capitalize">
+                              {collection.latestCommunication.type}
+                            </span>
+                          </>
                         )}
                         
                         {collection.latestCommunication.promisedAmount && (
-                          <p className="text-green-600 dark:text-green-400">
-                            ₹{(collection.latestCommunication.promisedAmount / 100).toLocaleString('en-IN')}
-                          </p>
+                          <>
+                            <span className="text-gray-400">•</span>
+                            <span className="text-green-600 dark:text-green-400">
+                              ₹{(collection.latestCommunication.promisedAmount / 100).toLocaleString('en-IN')}
+                            </span>
+                          </>
                         )}
                       </div>
                     ) : (
-                      <p className="text-gray-500 text-xs">-</p>
+                      <span className="text-gray-500 text-xs">-</span>
                     )}
                   </TableCell>
                   <TableCell className="py-2">
