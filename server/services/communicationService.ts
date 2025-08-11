@@ -29,12 +29,12 @@ export const communicationService = {
       const communicationData = {
         collectionId: data.collectionId,
         customerId: customerId,
-        type: data.type,
+        type: data.type as any, // Ensure enum type is accepted
         direction: data.direction,
         subject: data.subject || null,
         content: data.content,
         outcome: data.outcome || null,
-        promisedAmount: data.promisedAmount || null,
+        promisedAmount: data.promisedAmount ? parseInt(data.promisedAmount) : null,
         promisedDate: data.promisedDate || null,
         nextActionRequired: data.nextActionRequired || null,
         nextActionDate: data.nextActionDate || null,
@@ -43,7 +43,7 @@ export const communicationService = {
         createdAt: new Date(),
       };
 
-      console.log("Inserting communication data:", communicationData);
+      console.log("Inserting communication data:", JSON.stringify(communicationData, null, 2));
 
       const [newCommunication] = await db.insert(communications).values(communicationData).returning();
       return newCommunication;

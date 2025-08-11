@@ -425,9 +425,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/collections/:id/communications", requireAuth, async (req, res) => {
     try {
       const collectionId = req.params.id; // Keep as string for UUID
-      console.log("Communication request body:", req.body);
+      console.log("=== Communication Request ===");
+      console.log("Request body:", JSON.stringify(req.body, null, 2));
       console.log("Collection ID:", collectionId);
       console.log("User ID:", req.session.userId);
+      
+      // Validate required fields
+      if (!req.body.type) {
+        return res.status(400).json({ error: "Communication type is required" });
+      }
+      if (!req.body.direction) {
+        return res.status(400).json({ error: "Communication direction is required" });
+      }
+      if (!req.body.content) {
+        return res.status(400).json({ error: "Communication content is required" });
+      }
+      if (!req.session.userId) {
+        return res.status(400).json({ error: "User session not found" });
+      }
       
       const communicationData = {
         ...req.body,
@@ -435,14 +450,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
         createdBy: req.session.userId, // Changed from userId to createdBy
       };
       
+      console.log("Final communication data:", JSON.stringify(communicationData, null, 2));
+      
       const communication = await storage.createCommunication(communicationData);
       res.status(201).json(communication);
     } catch (error: any) {
-      console.error("Communication creation error:", error);
+      console.error("=== Communication Error ===");
+      console.error("Error type:", error.name);
+      console.error("Error message:", error.message);
+      console.error("Full error:", error);
+      
       if (error.name === 'ZodError') {
         return res.status(400).json({ error: "Invalid data", details: error.errors });
       }
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error.message || "Failed to save communication" });
     }
   });
 
