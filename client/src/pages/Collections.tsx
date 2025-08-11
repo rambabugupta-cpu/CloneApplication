@@ -239,8 +239,8 @@ export default function Collections() {
     const Icon = config.icon;
 
     return (
-      <Badge className={`${config.color} text-white`}>
-        <Icon className="w-3 h-3 mr-1" />
+      <Badge className={`${config.color} text-white text-xs py-0 px-1.5`}>
+        <Icon className="w-3 h-3 mr-0.5" />
         {config.label}
       </Badge>
     );
@@ -306,11 +306,11 @@ export default function Collections() {
         <Table>
           <TableHeader>
             <TableRow className="bg-gray-50 dark:bg-gray-900">
-              <TableHead className="font-semibold">Customer</TableHead>
-              <TableHead className="font-semibold">Outstanding</TableHead>
-              <TableHead className="font-semibold">Status</TableHead>
-              <TableHead className="font-semibold">Next Followup</TableHead>
-              <TableHead className="font-semibold text-center">Actions</TableHead>
+              <TableHead className="font-semibold w-[35%]">Customer</TableHead>
+              <TableHead className="font-semibold w-[15%]">Outstanding</TableHead>
+              <TableHead className="font-semibold w-[12%]">Status</TableHead>
+              <TableHead className="font-semibold w-[15%]">Next Followup</TableHead>
+              <TableHead className="font-semibold text-center w-[23%]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -329,48 +329,52 @@ export default function Collections() {
             ) : (
               filteredCollections?.map((collection: any) => (
                 <TableRow key={collection.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                  <TableCell>
-                    <div className="space-y-1">
-                      <p className="font-semibold text-base">{collection.customerName || 'N/A'}</p>
+                  <TableCell className="py-2">
+                    <div className="space-y-0.5">
+                      <p className="font-semibold text-sm truncate" title={collection.customerName || 'N/A'}>
+                        {collection.customerName || 'N/A'}
+                      </p>
                       {collection.customerCompany && (
-                        <p className="text-sm text-gray-600 dark:text-gray-400">{collection.customerCompany}</p>
+                        <p className="text-xs text-gray-600 dark:text-gray-400 truncate" title={collection.customerCompany}>
+                          {collection.customerCompany}
+                        </p>
                       )}
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <div className="flex items-center gap-1 text-xs text-gray-500">
                         <Phone className="h-3 w-3" />
                         <span>{collection.customerPhone || 'No phone'}</span>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
-                      <p className="font-bold text-lg">{formatCurrency(collection.outstandingAmount)}</p>
+                  <TableCell className="py-2">
+                    <div className="space-y-0.5">
+                      <p className="font-bold text-sm">{formatCurrency(collection.outstandingAmount)}</p>
                       {collection.paidAmount > 0 && (
-                        <p className="text-sm text-green-600 font-medium">
+                        <p className="text-xs text-green-600">
                           Paid: {formatCurrency(collection.paidAmount)}
                         </p>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
-                    <div className="space-y-1">
+                  <TableCell className="py-2">
+                    <div className="space-y-0.5">
                       {getStatusBadge(collection.status)}
                       {collection.agingDays > 0 && (
                         <p className={`text-xs ${collection.agingDays > 60 ? 'text-red-600' : collection.agingDays > 30 ? 'text-orange-600' : 'text-yellow-600'}`}>
-                          {collection.agingDays} days overdue
+                          {collection.agingDays}d
                         </p>
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableCell className="py-2">
                     {collection.latestCommunication ? (
-                      <div className="text-sm space-y-1">
+                      <div className="text-xs space-y-0.5">
                         {collection.latestCommunication.nextActionDate ? (
                           <p className="font-medium">
-                            {format(new Date(collection.latestCommunication.nextActionDate), "dd MMM yyyy")}
+                            {format(new Date(collection.latestCommunication.nextActionDate), "dd MMM")}
                           </p>
                         ) : collection.latestCommunication.promisedDate ? (
                           <p className="font-medium">
-                            Promise: {format(new Date(collection.latestCommunication.promisedDate), "dd MMM")}
+                            P: {format(new Date(collection.latestCommunication.promisedDate), "dd MMM")}
                           </p>
                         ) : (
                           <p className="text-gray-500">-</p>
@@ -378,7 +382,7 @@ export default function Collections() {
                         
                         {collection.latestCommunication.type && (
                           <p className="text-gray-600 dark:text-gray-400 capitalize">
-                            Last: {collection.latestCommunication.type}
+                            {collection.latestCommunication.type}
                           </p>
                         )}
                         
@@ -387,97 +391,90 @@ export default function Collections() {
                             ₹{(collection.latestCommunication.promisedAmount / 100).toLocaleString('en-IN')}
                           </p>
                         )}
-                        
-                        {collection.latestCommunication.nextActionRequired && (
-                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate" 
-                             title={collection.latestCommunication.nextActionRequired}>
-                            {collection.latestCommunication.nextActionRequired}
-                          </p>
-                        )}
                       </div>
                     ) : (
-                      <p className="text-gray-500 text-sm">-</p>
+                      <p className="text-gray-500 text-xs">-</p>
                     )}
                   </TableCell>
-                  <TableCell>
-                    <div className="flex gap-1 flex-wrap justify-center">
+                  <TableCell className="py-2">
+                    <div className="flex gap-0 flex-wrap justify-center">
                       {(user?.role === 'staff' || user?.role === 'admin' || user?.role === 'owner') && (
                         <>
                           <Button
                             size="sm"
                             variant="ghost"
                             title="Log Communication"
-                            className="hover:bg-gray-100 dark:hover:bg-gray-700"
+                            className="h-7 w-7 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
                             onClick={() => {
                               setSelectedCollection(collection);
                               setShowCommunicationDialog(true);
                             }}
                           >
-                            <ClipboardList className="h-4 w-4" />
+                            <ClipboardList className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             title="Call Customer"
-                            className="hover:bg-gray-100 dark:hover:bg-gray-700"
+                            className="h-7 w-7 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
                             onClick={() => window.location.href = `tel:${collection.customerPhone}`}
                           >
-                            <Phone className="h-4 w-4" />
+                            <Phone className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             title="Send SMS"
-                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                            className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                             onClick={() => {
                               const message = encodeURIComponent(`Reminder: Outstanding amount ${formatCurrency(collection.outstandingAmount)} is due.`);
                               window.location.href = `sms:${collection.customerPhone}?body=${message}`;
                             }}
                           >
-                            <MessageSquare className="h-4 w-4" />
+                            <MessageSquare className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             title="Send WhatsApp"
-                            className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
+                            className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
                             onClick={() => {
                               const phone = collection.customerPhone?.replace(/[^0-9]/g, '');
                               const message = encodeURIComponent(`Hello ${collection.customerName}, this is regarding your outstanding amount of ${formatCurrency(collection.outstandingAmount)}.`);
                               window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
                             }}
                           >
-                            <SiWhatsapp className="h-4 w-4" />
+                            <SiWhatsapp className="h-3.5 w-3.5" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             title="Record Payment"
-                            className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
+                            className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
                             onClick={() => {
                               setSelectedCollection(collection);
                               setShowPaymentDialog(true);
                             }}
                           >
-                            <IndianRupee className="h-4 w-4" />
+                            <IndianRupee className="h-3.5 w-3.5" />
                           </Button>
                           {!collection.disputeRaisedAt && (
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                              className="h-7 w-7 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
                               title="Raise Dispute"
                               onClick={() => handleRaiseDispute(collection)}
                             >
-                              <AlertCircle className="h-4 w-4" />
+                              <AlertCircle className="h-3.5 w-3.5" />
                             </Button>
                           )}
                         </>
                       )}
                       {collection.disputeRaisedAt && (
-                        <Badge className="bg-orange-500 text-white">
-                          <AlertCircle className="w-3 h-3 mr-1" />
-                          Disputed
+                        <Badge className="bg-orange-500 text-white text-xs py-0 px-1">
+                          <AlertCircle className="w-3 h-3 mr-0.5" />
+                          <span className="text-xs">Disputed</span>
                         </Badge>
                       )}
                     </div>
