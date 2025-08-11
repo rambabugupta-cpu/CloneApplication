@@ -2,7 +2,8 @@ import {
   pgTable, 
   text, 
   serial, 
-  integer, 
+  integer,
+  bigint, 
   boolean, 
   timestamp, 
   uuid, 
@@ -117,7 +118,7 @@ export const customers = pgTable("customers", {
   pincode: text("pincode"),
   
   // Business info
-  creditLimit: integer("credit_limit").default(0), // in paise
+  creditLimit: bigint("credit_limit", { mode: "number" }).default(0), // in paise
   creditDays: integer("credit_days").default(30),
   businessType: text("business_type"),
   
@@ -146,16 +147,16 @@ export const collections = pgTable("collections", {
   dueDate: date("due_date").notNull(),
   
   // Amounts (all in paise for precision)
-  originalAmount: integer("original_amount").notNull(),
-  outstandingAmount: integer("outstanding_amount").notNull(),
-  paidAmount: integer("paid_amount").default(0).notNull(),
+  originalAmount: bigint("original_amount", { mode: "number" }).notNull(),
+  outstandingAmount: bigint("outstanding_amount", { mode: "number" }).notNull(),
+  paidAmount: bigint("paid_amount", { mode: "number" }).default(0).notNull(),
   
   // Status tracking
   status: collectionStatusEnum("status").default("pending").notNull(),
   agingDays: integer("aging_days").default(0),
   
   // Collection info
-  promisedAmount: integer("promised_amount"),
+  promisedAmount: bigint("promised_amount", { mode: "number" }),
   promisedDate: date("promised_date"),
   lastFollowupDate: timestamp("last_followup_date"),
   nextFollowupDate: timestamp("next_followup_date"),
@@ -189,7 +190,7 @@ export const payments = pgTable("payments", {
   collectionId: uuid("collection_id").notNull().references(() => collections.id),
   
   // Payment details
-  amount: integer("amount").notNull(), // in paise
+  amount: bigint("amount", { mode: "number" }).notNull(), // in paise
   paymentDate: date("payment_date").notNull(),
   paymentMode: text("payment_mode").notNull(), // cash, cheque, upi, bank_transfer, etc
   referenceNumber: text("reference_number"),
@@ -230,7 +231,7 @@ export const communications = pgTable("communications", {
   
   // Response tracking
   outcome: text("outcome"), // promised_payment, callback_requested, disputed, etc
-  promisedAmount: integer("promised_amount"),
+  promisedAmount: bigint("promised_amount", { mode: "number" }),
   promisedDate: date("promised_date"),
   nextActionRequired: text("next_action_required"),
   nextActionDate: date("next_action_date"),

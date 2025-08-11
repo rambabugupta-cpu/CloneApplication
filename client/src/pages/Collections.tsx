@@ -309,12 +309,12 @@ export default function Collections() {
         <Table>
           <TableHeader>
             <TableRow className="bg-gray-50 dark:bg-gray-900">
-              <TableHead className="font-semibold text-center w-[5%]">S.No</TableHead>
-              <TableHead className="font-semibold text-center w-[30%]">Customer</TableHead>
-              <TableHead className="font-semibold text-center w-[10%]">Outstanding</TableHead>
-              <TableHead className="font-semibold text-center w-[15%]">Last Payment</TableHead>
-              <TableHead className="font-semibold text-center w-[17%]">Next Followup</TableHead>
-              <TableHead className="font-semibold text-center w-[23%]">Actions</TableHead>
+              <TableHead className="font-semibold text-center w-auto whitespace-nowrap px-2">S.No</TableHead>
+              <TableHead className="font-semibold text-center min-w-[200px] px-2">Customer</TableHead>
+              <TableHead className="font-semibold text-center w-auto whitespace-nowrap px-2">Outstanding</TableHead>
+              <TableHead className="font-semibold text-center w-auto whitespace-nowrap px-2">Last Payment</TableHead>
+              <TableHead className="font-semibold text-center w-auto whitespace-nowrap px-2">Next Followup</TableHead>
+              <TableHead className="font-semibold text-center w-auto whitespace-nowrap px-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -333,56 +333,56 @@ export default function Collections() {
             ) : (
               filteredCollections?.map((collection: any, index: number) => (
                 <TableRow key={collection.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                  <TableCell className="py-2 text-center">
-                    <span className="font-medium text-sm">{index + 1}</span>
+                  <TableCell className="py-1 text-center px-2 text-xs">
+                    {index + 1}
                   </TableCell>
-                  <TableCell className="py-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="font-semibold truncate max-w-[30%]" title={collection.customerName || 'N/A'}>
+                  <TableCell className="py-1 px-2">
+                    <div className="flex items-center gap-1 text-xs whitespace-nowrap">
+                      <span className="font-semibold truncate" title={collection.customerName || 'N/A'}>
                         {collection.customerName || 'N/A'}
                       </span>
                       {collection.customerCompany && (
                         <>
-                          <span className="text-gray-400">•</span>
-                          <span className="text-xs text-gray-600 dark:text-gray-400 truncate max-w-[30%]" title={collection.customerCompany}>
+                          <span className="text-gray-400 text-xs">•</span>
+                          <span className="text-[10px] text-gray-600 dark:text-gray-400 truncate" title={collection.customerCompany}>
                             {collection.customerCompany}
                           </span>
                         </>
                       )}
-                      <span className="text-gray-400">•</span>
-                      <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <Phone className="h-3 w-3 flex-shrink-0" />
+                      <span className="text-gray-400 text-xs">•</span>
+                      <div className="flex items-center gap-0.5 text-[10px] text-gray-500">
+                        <Phone className="h-2.5 w-2.5 flex-shrink-0" />
                         <span>{collection.customerPhone || 'No phone'}</span>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="py-2 text-center">
-                    <span className="font-bold text-sm">{formatCurrency(collection.outstandingAmount)}</span>
+                  <TableCell className="py-1 text-center px-2 whitespace-nowrap">
+                    <span className="font-bold text-xs">{formatCurrency(collection.outstandingAmount)}</span>
                   </TableCell>
-                  <TableCell className="py-2 text-center">
+                  <TableCell className="py-1 text-center px-2 whitespace-nowrap">
                     {collection.lastPaymentAmount && collection.lastPaymentAmount > 0 ? (
-                      <div className="text-xs">
+                      <div className="text-[10px]">
                         <span className="font-medium text-green-600">{formatCurrency(collection.lastPaymentAmount)}</span>
                         {collection.lastPaymentDate && (
-                          <p className="text-gray-500 text-[10px]">
-                            {format(new Date(collection.lastPaymentDate), "dd MMM yy")}
+                          <p className="text-gray-500 text-[9px]">
+                            {format(new Date(collection.lastPaymentDate), "dd/MM")}
                           </p>
                         )}
                       </div>
                     ) : (
-                      <span className="text-gray-500 text-xs">No payment</span>
+                      <span className="text-gray-500 text-[10px]">-</span>
                     )}
                   </TableCell>
-                  <TableCell className="py-2">
+                  <TableCell className="py-1 px-2 whitespace-nowrap">
                     {collection.latestCommunication ? (
-                      <div className="flex items-center gap-2 text-xs">
+                      <div className="flex items-center gap-1 text-[10px]">
                         {collection.latestCommunication.nextActionDate ? (
                           <span className="font-medium">
-                            {format(new Date(collection.latestCommunication.nextActionDate), "dd MMM yyyy")}
+                            {format(new Date(collection.latestCommunication.nextActionDate), "dd/MM")}
                           </span>
                         ) : collection.latestCommunication.promisedDate ? (
                           <span className="font-medium">
-                            Promise: {format(new Date(collection.latestCommunication.promisedDate), "dd MMM yyyy")}
+                            P:{format(new Date(collection.latestCommunication.promisedDate), "dd/MM")}
                           </span>
                         ) : (
                           <span className="text-gray-500">-</span>
@@ -390,18 +390,18 @@ export default function Collections() {
                         
                         {collection.latestCommunication.promisedAmount && (
                           <>
-                            <span className="text-gray-400">•</span>
-                            <span className="text-green-600 dark:text-green-400">
+                            <span className="text-gray-400 text-[9px]">•</span>
+                            <span className="text-green-600 dark:text-green-400 text-[10px]">
                               ₹{(collection.latestCommunication.promisedAmount / 100).toLocaleString('en-IN')}
                             </span>
                           </>
                         )}
                       </div>
                     ) : (
-                      <span className="text-gray-500 text-xs">-</span>
+                      <span className="text-gray-500 text-[10px]">-</span>
                     )}
                   </TableCell>
-                  <TableCell className="py-2">
+                  <TableCell className="py-1 px-1">
                     <div className="flex gap-0 flex-wrap justify-center">
                       {(user?.role === 'staff' || user?.role === 'admin' || user?.role === 'owner') && (
                         <>
@@ -409,69 +409,69 @@ export default function Collections() {
                             size="sm"
                             variant="ghost"
                             title="Log Communication"
-                            className="h-7 w-7 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
                             onClick={() => {
                               setSelectedCollection(collection);
                               setShowCommunicationDialog(true);
                             }}
                           >
-                            <ClipboardList className="h-3.5 w-3.5" />
+                            <ClipboardList className="h-3 w-3" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             title="Call Customer"
-                            className="h-7 w-7 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
+                            className="h-6 w-6 p-0 hover:bg-gray-100 dark:hover:bg-gray-700"
                             onClick={() => window.location.href = `tel:${collection.customerPhone}`}
                           >
-                            <Phone className="h-3.5 w-3.5" />
+                            <Phone className="h-3 w-3" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             title="Send SMS"
-                            className="h-7 w-7 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                            className="h-6 w-6 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
                             onClick={() => {
                               const message = encodeURIComponent(`Reminder: Outstanding amount ${formatCurrency(collection.outstandingAmount)} is due.`);
                               window.location.href = `sms:${collection.customerPhone}?body=${message}`;
                             }}
                           >
-                            <MessageSquare className="h-3.5 w-3.5" />
+                            <MessageSquare className="h-3 w-3" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             title="Send WhatsApp"
-                            className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
+                            className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
                             onClick={() => {
                               const phone = collection.customerPhone?.replace(/[^0-9]/g, '');
                               const message = encodeURIComponent(`Hello ${collection.customerName}, this is regarding your outstanding amount of ${formatCurrency(collection.outstandingAmount)}.`);
                               window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
                             }}
                           >
-                            <SiWhatsapp className="h-3.5 w-3.5" />
+                            <SiWhatsapp className="h-3 w-3" />
                           </Button>
                           <Button
                             size="sm"
                             variant="ghost"
                             title="Record Payment"
-                            className="h-7 w-7 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
+                            className="h-6 w-6 p-0 text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
                             onClick={() => {
                               setSelectedCollection(collection);
                               setShowPaymentDialog(true);
                             }}
                           >
-                            <IndianRupee className="h-3.5 w-3.5" />
+                            <IndianRupee className="h-3 w-3" />
                           </Button>
                           {!collection.disputeRaisedAt && (
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-7 w-7 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                              className="h-6 w-6 p-0 text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
                               title="Raise Dispute"
                               onClick={() => handleRaiseDispute(collection)}
                             >
-                              <AlertCircle className="h-3.5 w-3.5" />
+                              <AlertCircle className="h-3 w-3" />
                             </Button>
                           )}
                         </>
