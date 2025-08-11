@@ -424,12 +424,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/collections/:id/communications", requireAuth, async (req, res) => {
     try {
-      const collectionId = parseInt(req.params.id);
-      const communicationData = insertCommunicationSchema.parse({
+      const collectionId = req.params.id; // Keep as string for UUID
+      const communicationData = {
         ...req.body,
         collectionId,
-        userId: req.session.userId,
-      });
+        createdBy: req.session.userId, // Changed from userId to createdBy
+      };
       const communication = await storage.createCommunication(communicationData);
       res.status(201).json(communication);
     } catch (error: any) {
@@ -448,6 +448,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       if (!reason || reason.trim() === '') {
         return res.status(400).json({ error: "Dispute reason is required" });
+      }
+      
+      if (!req.session.userId) {
+        return res.status(401).json({ error: "User not authenticated" });
       }
       
       await storage.raiseDispute(collectionId, reason, req.session.userId);
