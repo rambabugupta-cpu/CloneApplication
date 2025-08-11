@@ -204,6 +204,8 @@ export class PaymentService {
   }
 
   async getPendingPayments(): Promise<any[]> {
+    const { customers } = await import("@shared/schema");
+    
     const pendingPayments = await db.select({
       id: payments.id,
       amount: payments.amount,
@@ -215,11 +217,12 @@ export class PaymentService {
       collectionId: payments.collectionId,
       createdAt: payments.createdAt,
       collectionInvoice: collections.invoiceNumber,
-      customerName: collections.customerName,
+      customerName: customers.primaryContactName,
       recordedByName: users.fullName,
     })
     .from(payments)
     .leftJoin(collections, eq(payments.collectionId, collections.id))
+    .leftJoin(customers, eq(collections.customerId, customers.id))
     .leftJoin(users, eq(payments.recordedBy, users.id))
     .where(eq(payments.status, "pending_approval"))
     .orderBy(desc(payments.createdAt));

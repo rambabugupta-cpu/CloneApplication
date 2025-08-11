@@ -131,6 +131,10 @@ A comprehensive collection management system designed for RBG Infra Developers L
 - Input validation with Zod schemas
 
 ## Recent Changes
+- **2025-08-11**: Fixed payment recording issue by removing database transactions (neon-http driver doesn't support them)
+- **2025-08-11**: Added Excel import batch tracking to display upload details in payment popups
+- **2025-08-11**: Fixed pending payments query error by properly joining with customers table
+- **2025-08-11**: Added communication seed data with follow-up dates for testing
 - **2025-08-11**: Rebranded application from "Tally Collections Management System" to "RBG Infra Developers LLP"
 - **2025-08-10**: Successfully completed migration from Lovable to Replit
 - **2025-08-10**: Implemented new authentication system replacing Supabase
@@ -139,8 +143,8 @@ A comprehensive collection management system designed for RBG Infra Developers L
 - **2025-08-10**: Implemented full collection management system with comprehensive features:
   - Complete Dashboard with real-time analytics and charts
   - Collections management with CRUD operations
-  - Payment tracking and recording
-  - Communication logs for customer interactions
+  - Payment tracking and recording with Excel import details
+  - Communication logs for customer interactions with follow-up tracking
   - Role-based navigation and access control
   - Database schema with collections, payments, and communications tables
   - Comprehensive seed data with demo users and realistic collection records
