@@ -296,9 +296,12 @@ export default function Collections() {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
         {/* Import Date Header */}
         {filteredCollections && filteredCollections.length > 0 && (
-          <div className="px-6 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+          <div className="px-6 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
             <p className="text-sm text-gray-600 dark:text-gray-400">
               Last Import: {format(new Date(filteredCollections[0]?.createdAt || Date.now()), "dd MMM yyyy, HH:mm")}
+            </p>
+            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Total Customers: {filteredCollections.length}
             </p>
           </div>
         )}
@@ -306,29 +309,33 @@ export default function Collections() {
         <Table>
           <TableHeader>
             <TableRow className="bg-gray-50 dark:bg-gray-900">
-              <TableHead className="font-semibold w-[35%]">Customer</TableHead>
-              <TableHead className="font-semibold w-[10%]">Outstanding</TableHead>
-              <TableHead className="font-semibold w-[10%]">Status</TableHead>
-              <TableHead className="font-semibold w-[22%]">Next Followup</TableHead>
+              <TableHead className="font-semibold text-center w-[5%]">S.No</TableHead>
+              <TableHead className="font-semibold text-center w-[30%]">Customer</TableHead>
+              <TableHead className="font-semibold text-center w-[10%]">Outstanding</TableHead>
+              <TableHead className="font-semibold text-center w-[15%]">Last Payment</TableHead>
+              <TableHead className="font-semibold text-center w-[17%]">Next Followup</TableHead>
               <TableHead className="font-semibold text-center w-[23%]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8">
+                <TableCell colSpan={6} className="text-center py-8">
                   Loading collections...
                 </TableCell>
               </TableRow>
             ) : filteredCollections?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8">
+                <TableCell colSpan={6} className="text-center py-8">
                   No collections found
                 </TableCell>
               </TableRow>
             ) : (
-              filteredCollections?.map((collection: any) => (
+              filteredCollections?.map((collection: any, index: number) => (
                 <TableRow key={collection.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
+                  <TableCell className="py-2 text-center">
+                    <span className="font-medium text-sm">{index + 1}</span>
+                  </TableCell>
                   <TableCell className="py-2">
                     <div className="flex items-center gap-2 text-sm">
                       <span className="font-semibold truncate max-w-[30%]" title={collection.customerName || 'N/A'}>
@@ -349,18 +356,22 @@ export default function Collections() {
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="py-2">
+                  <TableCell className="py-2 text-center">
                     <span className="font-bold text-sm">{formatCurrency(collection.outstandingAmount)}</span>
                   </TableCell>
-                  <TableCell className="py-2">
-                    <div className="flex items-center gap-2">
-                      {getStatusBadge(collection.status)}
-                      {collection.agingDays > 0 && (
-                        <span className={`text-xs font-medium ${collection.agingDays > 60 ? 'text-red-600' : collection.agingDays > 30 ? 'text-orange-600' : 'text-yellow-600'}`}>
-                          {collection.agingDays}d
-                        </span>
-                      )}
-                    </div>
+                  <TableCell className="py-2 text-center">
+                    {collection.lastPaymentAmount && collection.lastPaymentAmount > 0 ? (
+                      <div className="text-xs">
+                        <span className="font-medium text-green-600">{formatCurrency(collection.lastPaymentAmount)}</span>
+                        {collection.lastPaymentDate && (
+                          <p className="text-gray-500 text-[10px]">
+                            {format(new Date(collection.lastPaymentDate), "dd MMM yy")}
+                          </p>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-gray-500 text-xs">No payment</span>
+                    )}
                   </TableCell>
                   <TableCell className="py-2">
                     {collection.latestCommunication ? (

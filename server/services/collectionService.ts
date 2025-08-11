@@ -173,7 +173,7 @@ export class CollectionService {
     // Import communications table
     const { communications } = await import("@shared/schema");
     
-    // Fetch latest communication for each collection
+    // Fetch latest communication and payment for each collection
     const collectionsWithComms = await Promise.all(results.map(async (collection) => {
       // Get the latest communication for this collection
       const latestComm = await db
@@ -193,9 +193,30 @@ export class CollectionService {
         .orderBy(desc(communications.createdAt))
         .limit(1);
       
+      // Get the latest payment for this collection
+      const latestPayment = await db
+        .select({
+          amount: payments.amount,
+          paymentDate: payments.paymentDate,
+          paymentMode: payments.paymentMode,
+          status: payments.status,
+          createdAt: payments.createdAt,
+        })
+        .from(payments)
+        .where(
+          and(
+            eq(payments.collectionId, collection.id),
+            eq(payments.status, "approved" as any)
+          )
+        )
+        .orderBy(desc(payments.createdAt))
+        .limit(1);
+      
       return {
         ...collection,
         latestCommunication: latestComm[0] || null,
+        lastPaymentDate: latestPayment[0]?.paymentDate || null,
+        lastPaymentAmount: latestPayment[0]?.amount || 0,
         // Update nextFollowupDate from communication if available
         nextFollowupDate: latestComm[0]?.nextActionDate || collection.nextFollowupDate,
       };
