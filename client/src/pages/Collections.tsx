@@ -1339,7 +1339,7 @@ export default function Collections() {
                     referenceNumber: data.referenceNumber,
                     bankName: data.bankName,
                     notes: data.notes,
-                    edit_reason: editReasonText,
+                    editReason: editReasonText,
                   },
                 });
               })} className="space-y-4">
@@ -1506,7 +1506,7 @@ export default function Collections() {
                     outcome: data.outcome,
                     promisedAmount: data.promisedAmount ? parseFloat(data.promisedAmount) * 100 : null,
                     promisedDate: data.promisedDate,
-                    edit_reason: editReasonText,
+                    editReason: editReasonText,
                   },
                 });
               })} className="space-y-4">
