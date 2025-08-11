@@ -58,6 +58,7 @@ import {
   MessageCircle,
   Send
 } from "lucide-react";
+import { SiWhatsapp } from "react-icons/si";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -445,7 +446,7 @@ export default function Collections() {
                               window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
                             }}
                           >
-                            <MessageCircle className="h-4 w-4" />
+                            <SiWhatsapp className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"
@@ -457,7 +458,7 @@ export default function Collections() {
                               window.location.href = `sms:${collection.customerPhone}?body=${message}`;
                             }}
                           >
-                            <Send className="h-4 w-4" />
+                            <MessageSquare className="h-4 w-4" />
                           </Button>
                           {!collection.disputeRaisedAt && (
                             <Button
