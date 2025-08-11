@@ -1,6 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   IndianRupee, 
   Users, 
@@ -9,20 +11,112 @@ import {
   TrendingUp,
   TrendingDown,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Target,
+  Calendar,
+  Download,
+  RefreshCw,
+  BarChart3,
+  PieChart,
+  Activity
 } from "lucide-react";
-import { BarChart, Bar, LineChart, Line, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
+import { 
+  BarChart, 
+  Bar, 
+  LineChart, 
+  Line, 
+  PieChart as RechartsPieChart, 
+  Pie, 
+  Cell, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend, 
+  ResponsiveContainer,
+  ComposedChart,
+  Area,
+  AreaChart
+} from "recharts";
 import { useUser } from "@/hooks/use-user";
+
+// Type definitions for dashboard data
+interface DashboardStats {
+  totalOutstanding: number;
+  totalCollected: number;
+  totalCount: number;
+  collectionRate: number;
+  overdueAmount: number;
+  overdueCount: number;
+  activeCustomers: number;
+  totalCustomers: number;
+  monthlyTarget: number;
+  monthlyAchieved: number;
+  targetProgress: number;
+  todayCollections: number;
+  weeklyCollections: number;
+  monthlyCollections: number;
+  paidCount: number;
+  pendingCount: number;
+  partialCount: number;
+}
+
+interface MonthlyTrend {
+  month: string;
+  collected: number;
+  outstanding: number;
+  target: number;
+}
+
+interface StaffPerformance {
+  name: string;
+  collected: number;
+  target: number;
+  success_rate: number;
+}
+
+interface TopCustomer {
+  name: string;
+  outstanding: number;
+  overdue_days: number;
+}
+
+interface PerformanceData {
+  staffPerformance: StaffPerformance[];
+  topCustomers: TopCustomer[];
+}
+
+interface AgingBucket {
+  range: string;
+  amount: number;
+  count: number;
+  percentage: number;
+}
 
 export default function Dashboard() {
   const { user } = useUser();
   
-  const { data: stats, isLoading } = useQuery({
+  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats>({
     queryKey: ["/api/dashboard/stats"],
     enabled: !!user,
   });
 
-  if (isLoading) {
+  const { data: monthlyTrends, isLoading: trendsLoading } = useQuery<MonthlyTrend[]>({
+    queryKey: ["/api/dashboard/monthly-trends"],
+    enabled: !!user,
+  });
+
+  const { data: performanceData, isLoading: performanceLoading } = useQuery<PerformanceData>({
+    queryKey: ["/api/dashboard/collection-performance"],
+    enabled: !!user,
+  });
+
+  const { data: agingData, isLoading: agingLoading } = useQuery<AgingBucket[]>({
+    queryKey: ["/api/dashboard/aging-analysis"],
+    enabled: !!user,
+  });
+
+  if (statsLoading || trendsLoading || performanceLoading || agingLoading) {
     return (
       <div className="container mx-auto p-6">
         <div className="animate-pulse space-y-4">
@@ -30,6 +124,11 @@ export default function Dashboard() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1, 2, 3, 4].map((i) => (
               <div key={i} className="h-32 bg-gray-200 rounded"></div>
+            ))}
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[1, 2].map((i) => (
+              <div key={i} className="h-64 bg-gray-200 rounded"></div>
             ))}
           </div>
         </div>
@@ -51,16 +150,10 @@ export default function Dashboard() {
     return `${value.toFixed(1)}%`;
   };
 
-  // Sample data for charts
-  const monthlyData = [
-    { month: 'Jan', collected: 2500000, outstanding: 4500000 },
-    { month: 'Feb', collected: 3200000, outstanding: 4200000 },
-    { month: 'Mar', collected: 2800000, outstanding: 4800000 },
-    { month: 'Apr', collected: 3500000, outstanding: 3900000 },
-    { month: 'May', collected: 4100000, outstanding: 3500000 },
-    { month: 'Jun', collected: 3800000, outstanding: 3200000 },
-  ];
+  // Chart colors
+  const COLORS = ['#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#8B5CF6', '#EC4899'];
 
+  // Status data for pie chart
   const statusData = [
     { name: 'Paid', value: stats?.paidCount || 0, color: '#10B981' },
     { name: 'Pending', value: stats?.pendingCount || 0, color: '#F59E0B' },
@@ -68,181 +161,338 @@ export default function Dashboard() {
     { name: 'Partial', value: stats?.partialCount || 0, color: '#3B82F6' },
   ];
 
-  const agingData = [
-    { range: '0-30 days', amount: stats?.aging030 || 0 },
-    { range: '31-60 days', amount: stats?.aging3160 || 0 },
-    { range: '61-90 days', amount: stats?.aging6190 || 0 },
-    { range: '90+ days', amount: stats?.aging90plus || 0 },
-  ];
-
   return (
-    <div className="container mx-auto p-6">
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold">Welcome, {user?.fullName || user?.email}</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Here's an overview of your collection management system
-        </p>
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
+      <div className="flex justify-between items-center">
+        <div>
+          <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Welcome back, {user?.fullName || user?.email}
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export Report
+          </Button>
+          <Button variant="outline" size="sm">
+            <RefreshCw className="h-4 w-4 mr-2" />
+            Refresh Data
+          </Button>
+        </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <Card>
+      {/* Key Metrics Row */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900 dark:to-blue-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Outstanding</CardTitle>
-            <IndianRupee className="h-4 w-4 text-muted-foreground" />
+            <IndianRupee className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats?.totalOutstanding || 0)}</div>
-            <p className="text-xs text-muted-foreground">
+            <div className="text-2xl font-bold text-blue-700">{formatCurrency(stats?.totalOutstanding || 0)}</div>
+            <p className="text-xs text-blue-600 mt-1">
               From {stats?.totalCount || 0} invoices
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900 dark:to-green-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Collected</CardTitle>
             <CheckCircle className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-2xl font-bold text-green-700">
               {formatCurrency(stats?.totalCollected || 0)}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-green-600 mt-1">
               Collection rate: {formatPercentage(stats?.collectionRate || 0)}
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-red-50 to-red-100 dark:from-red-900 dark:to-red-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Overdue</CardTitle>
+            <CardTitle className="text-sm font-medium">Overdue Amount</CardTitle>
             <AlertCircle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats?.overdueCount || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              Amount: {formatCurrency(stats?.overdueAmount || 0)}
+            <div className="text-2xl font-bold text-red-700">
+              {formatCurrency(stats?.overdueAmount || 0)}
+            </div>
+            <p className="text-xs text-red-600 mt-1">
+              {stats?.overdueCount || 0} overdue invoices
             </p>
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900 dark:to-purple-800">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Active Customers</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
+            <Users className="h-4 w-4 text-purple-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats?.activeCustomers || 0}</div>
-            <p className="text-xs text-muted-foreground">
-              Total: {stats?.totalCustomers || 0}
+            <div className="text-2xl font-bold text-purple-700">{stats?.activeCustomers || 0}</div>
+            <p className="text-xs text-purple-600 mt-1">
+              Total: {stats?.totalCustomers || 0} customers
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+      {/* Monthly Target Progress */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Target className="h-5 w-5" />
+            Monthly Collection Target
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-sm font-medium">Target: {formatCurrency(stats?.monthlyTarget || 0)}</span>
+              <span className="text-sm text-muted-foreground">
+                Achieved: {formatCurrency(stats?.monthlyAchieved || 0)}
+              </span>
+            </div>
+            <Progress value={stats?.targetProgress || 0} className="h-3" />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{formatPercentage(stats?.targetProgress || 0)} completed</span>
+              <span>
+                {(stats?.targetProgress || 0) >= 100 ? '🎉 Target Achieved!' : 
+                 `${formatCurrency((stats?.monthlyTarget || 0) - (stats?.monthlyAchieved || 0))} remaining`}
+              </span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Collection Performance Metrics */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
-          <CardHeader>
-            <CardTitle>Monthly Collection Trend</CardTitle>
+          <CardHeader className="text-center">
+            <CardTitle className="text-lg">Today</CardTitle>
           </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthlyData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`} />
-                <Tooltip formatter={(value: number) => formatCurrency(value)} />
-                <Legend />
-                <Line type="monotone" dataKey="collected" stroke="#10B981" name="Collected" strokeWidth={2} />
-                <Line type="monotone" dataKey="outstanding" stroke="#EF4444" name="Outstanding" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
+          <CardContent className="text-center">
+            <div className="text-2xl font-bold text-green-600">
+              {formatCurrency(stats?.todayCollections || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">Collections</p>
           </CardContent>
         </Card>
+        
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle className="text-lg">This Week</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            <div className="text-2xl font-bold text-blue-600">
+              {formatCurrency(stats?.weeklyCollections || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">Collections</p>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardHeader className="text-center">
+            <CardTitle className="text-lg">This Month</CardTitle>
+          </CardHeader>
+          <CardContent className="text-center">
+            <div className="text-2xl font-bold text-purple-600">
+              {formatCurrency(stats?.monthlyCollections || 0)}
+            </div>
+            <p className="text-xs text-muted-foreground">Collections</p>
+          </CardContent>
+        </Card>
+      </div>
 
+      {/* Advanced Analytics Tabs */}
+      <Tabs defaultValue="trends" className="w-full">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="trends">
+            <TrendingUp className="h-4 w-4 mr-2" />
+            Trends
+          </TabsTrigger>
+          <TabsTrigger value="aging">
+            <Clock className="h-4 w-4 mr-2" />
+            Aging Analysis
+          </TabsTrigger>
+          <TabsTrigger value="performance">
+            <Activity className="h-4 w-4 mr-2" />
+            Performance
+          </TabsTrigger>
+          <TabsTrigger value="customers">
+            <Users className="h-4 w-4 mr-2" />
+            Top Customers
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="trends" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Monthly Collection Trends</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={400}>
+                <ComposedChart data={monthlyTrends || []}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis tickFormatter={(value) => `₹${(value / 100000).toFixed(1)}L`} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                  <Legend />
+                  <Bar dataKey="collected" fill="#10B981" name="Collected" />
+                  <Line type="monotone" dataKey="target" stroke="#EF4444" strokeWidth={2} name="Target" />
+                  <Area dataKey="outstanding" fill="#3B82F6" fillOpacity={0.3} name="Outstanding" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="aging" className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Aging Distribution</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <RechartsPieChart>
+                    <Pie
+                      data={agingData || []}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      dataKey="amount"
+                      nameKey="range"
+                      label={({ range, percentage }: { range: string; percentage: number }) => `${range}: ${percentage}%`}
+                    >
+                      {(agingData || []).map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Aging Breakdown</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={agingData || []}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="range" />
+                    <YAxis tickFormatter={(value) => `₹${(value / 100000).toFixed(1)}L`} />
+                    <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                    <Bar dataKey="amount" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="performance" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Staff Performance Analysis</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart data={performanceData?.staffPerformance || []} layout="horizontal">
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis type="number" tickFormatter={(value) => `₹${(value / 100000).toFixed(1)}L`} />
+                  <YAxis dataKey="name" type="category" width={100} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                  <Legend />
+                  <Bar dataKey="collected" fill="#10B981" name="Collected" />
+                  <Bar dataKey="target" fill="#EF4444" name="Target" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="customers" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Top Customers by Outstanding Amount</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={400}>
+                <BarChart data={performanceData?.topCustomers || []}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" angle={-45} textAnchor="end" height={80} />
+                  <YAxis tickFormatter={(value) => `₹${(value / 100000).toFixed(1)}L`} />
+                  <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                  <Bar dataKey="outstanding" fill="#EF4444" />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+
+      {/* Status Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
           <CardHeader>
-            <CardTitle>Collection Status Distribution</CardTitle>
+            <CardTitle>Collection Status Overview</CardTitle>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
+            <ResponsiveContainer width="100%" height={250}>
+              <RechartsPieChart>
                 <Pie
                   data={statusData}
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
-                  label={({ name, value }) => `${name}: ${value}`}
                   outerRadius={80}
-                  fill="#8884d8"
                   dataKey="value"
+                  nameKey="name"
+                  label={({ name, value }) => `${name}: ${value}`}
                 >
                   {statusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
                 <Tooltip />
-              </PieChart>
+                <Legend />
+              </RechartsPieChart>
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      </div>
 
-      {/* Aging Analysis */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Aging Analysis</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={250}>
-            <BarChart data={agingData}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="range" />
-              <YAxis tickFormatter={(value) => `₹${(value / 100000).toFixed(0)}L`} />
-              <Tooltip formatter={(value: number) => formatCurrency(value)} />
-              <Bar dataKey="amount" fill="#8B5CF6" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      {/* Collection Progress for Staff */}
-      {(user?.role === 'staff' || user?.role === 'admin' || user?.role === 'owner') && (
-        <Card className="mt-6">
+        <Card>
           <CardHeader>
-            <CardTitle>Your Collection Progress</CardTitle>
+            <CardTitle>Quick Actions</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <div className="flex justify-between mb-2">
-                  <span className="text-sm font-medium">Monthly Target</span>
-                  <span className="text-sm text-muted-foreground">
-                    {formatCurrency(stats?.monthlyTarget || 5000000)} / {formatCurrency(stats?.monthlyAchieved || 3500000)}
-                  </span>
-                </div>
-                <Progress value={stats?.targetProgress || 70} className="h-2" />
-              </div>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-2xl font-bold">{stats?.todayCollections || 0}</p>
-                  <p className="text-xs text-muted-foreground">Today's Collections</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats?.weeklyCollections || 0}</p>
-                  <p className="text-xs text-muted-foreground">This Week</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{stats?.monthlyCollections || 0}</p>
-                  <p className="text-xs text-muted-foreground">This Month</p>
-                </div>
-              </div>
-            </div>
+          <CardContent className="space-y-3">
+            <Button className="w-full justify-start" variant="outline">
+              <FileText className="h-4 w-4 mr-2" />
+              Generate Collection Report
+            </Button>
+            <Button className="w-full justify-start" variant="outline">
+              <Calendar className="h-4 w-4 mr-2" />
+              Schedule Follow-ups
+            </Button>
+            <Button className="w-full justify-start" variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              Export Outstanding List
+            </Button>
+            <Button className="w-full justify-start" variant="outline">
+              <AlertCircle className="h-4 w-4 mr-2" />
+              View Overdue Accounts
+            </Button>
           </CardContent>
         </Card>
-      )}
+      </div>
     </div>
   );
 }
