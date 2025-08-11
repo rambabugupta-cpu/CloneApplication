@@ -152,6 +152,14 @@ export class CollectionService {
       customerPhone: customers.primaryPhone,
       customerEmail: customers.primaryEmail,
       customerCode: customers.customerCode,
+      // Customer address
+      customerAddress: sql<string>`CONCAT_WS(', ', 
+        NULLIF(${customers.addressLine1}, ''), 
+        NULLIF(${customers.addressLine2}, ''), 
+        NULLIF(${customers.city}, ''), 
+        NULLIF(${customers.state}, ''), 
+        NULLIF(${customers.pincode}, '')
+      )`.as('customerAddress'),
     })
     .from(collections)
     .leftJoin(customers, eq(collections.customerId, customers.id));

@@ -245,6 +245,7 @@ export default function Collections() {
   const filteredCollections = (collections as any[])?.filter((collection: any) => {
     const matchesSearch = 
       collection.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      collection.customerPhone?.includes(searchTerm) ||
       collection.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase());
     
     const matchesStatus = statusFilter === "all" || collection.status === statusFilter;
@@ -266,7 +267,7 @@ export default function Collections() {
         <div className="flex-1 relative">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
           <Input
-            placeholder="Search by customer or invoice..."
+            placeholder="Search by Customer or Mobile No."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
@@ -576,7 +577,20 @@ export default function Collections() {
           <DialogHeader>
             <DialogTitle>Log Communication</DialogTitle>
             <DialogDescription>
-              Record communication with customer for invoice {selectedCollection?.invoiceNumber}
+              <div className="space-y-1 mt-2">
+                <p className="font-semibold text-base">{selectedCollection?.customerName}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {selectedCollection?.customerAddress || 'Address not available'}
+                </p>
+                <p className="text-sm">
+                  <span className="font-medium">Amount: </span>
+                  {formatCurrency(selectedCollection?.outstandingAmount || 0)}
+                </p>
+                <p className="text-sm">
+                  <span className="font-medium">Mobile: </span>
+                  {selectedCollection?.customerPhone || 'Not available'}
+                </p>
+              </div>
             </DialogDescription>
           </DialogHeader>
           <Form {...communicationForm}>
