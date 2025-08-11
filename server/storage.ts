@@ -114,6 +114,18 @@ export class DatabaseStorage {
     return await collectionService.raiseDispute(collectionId, reason, userId);
   }
 
+  async getPendingPayments() {
+    return await paymentService.getPendingPayments();
+  }
+
+  async approvePayment(paymentId: string, approvedBy: string) {
+    return await paymentService.approvePayment(paymentId, approvedBy);
+  }
+
+  async rejectPayment(paymentId: string, rejectedBy: string) {
+    return await paymentService.rejectPayment(paymentId, rejectedBy);
+  }
+
   // Customer operations for Excel import
   async getCustomerByName(name: string) {
     if (!name) return null;

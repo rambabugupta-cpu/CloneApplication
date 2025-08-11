@@ -195,6 +195,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get pending payments endpoint
+  app.get("/api/payments/pending", requireAuth, async (req, res) => {
+    try {
+      // Check if user is admin or owner
+      const user = await storage.getUserById(req.session.userId!);
+      if (user?.role !== "admin" && user?.role !== "owner") {
+        return res.status(403).json({ error: "Admin/Owner access required" });
+      }
+      
+      const pendingPayments = await storage.getPendingPayments();
+      res.json(pendingPayments);
+    } catch (error: any) {
+      console.error("Get pending payments error:", error);
+      res.status(500).json({ error: "Failed to get pending payments" });
+    }
+  });
+
+  // Approve/Reject payment endpoint
+  app.post("/api/payments/:paymentId/approve", requireAuth, async (req, res) => {
+    try {
+      const { paymentId } = req.params;
+      const { status } = req.body; // 'approved' or 'rejected'
+      
+      // Check if user is admin or owner
+      const user = await storage.getUserById(req.session.userId!);
+      if (user?.role !== "admin" && user?.role !== "owner") {
+        return res.status(403).json({ error: "Admin/Owner access required" });
+      }
+
+      if (status === 'approved') {
+        const payment = await storage.approvePayment(paymentId, req.session.userId!);
+        res.json(payment);
+      } else if (status === 'rejected') {
+        const payment = await storage.rejectPayment(paymentId, req.session.userId!);
+        res.json(payment);
+      } else {
+        res.status(400).json({ error: "Invalid status. Must be 'approved' or 'rejected'" });
+      }
+    } catch (error: any) {
+      console.error("Approve payment error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Get all users by role
   app.get("/api/users", requireAuth, async (req, res) => {
     try {
@@ -396,10 +440,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/collections/:id/payments", requireAuth, async (req, res) => {
     try {
       const collectionId = req.params.id; // Keep as UUID string
+      
+      // Get user role to determine if auto-approval is needed
+      const userRole = await storage.getUserRole(req.session.userId!);
+      
       const paymentData = {
         ...req.body,
         collectionId,
         recordedBy: req.session.userId,
+        userRole: userRole?.role,
         paymentDate: req.body.paymentDate || new Date().toISOString().split('T')[0], // Add default date if not provided
       };
       

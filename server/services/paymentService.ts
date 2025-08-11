@@ -4,6 +4,7 @@ import {
   collections,
   notifications,
   auditLogs,
+  users,
   type Payment, 
   type InsertPayment 
 } from "@shared/schema";
@@ -17,14 +18,19 @@ export class PaymentService {
   private notificationService = new NotificationService();
   private auditService = new AuditService();
 
-  async recordPayment(data: InsertPayment & { recordedBy: string }): Promise<Payment> {
+  async recordPayment(data: InsertPayment & { recordedBy: string; userRole?: string }): Promise<Payment> {
     // Start transaction
     const payment = await db.transaction(async (tx) => {
-      // Create payment record with pending approval status
+      // Check if payment should be auto-approved (admin/owner)
+      const isAutoApproved = data.userRole === 'admin' || data.userRole === 'owner';
+      
+      // Create payment record
       const [newPayment] = await tx.insert(payments).values({
         ...data,
-        status: "pending_approval",
+        status: isAutoApproved ? "approved" : "pending_approval",
         recordedBy: data.recordedBy,
+        approvedBy: isAutoApproved ? data.recordedBy : undefined,
+        approvedAt: isAutoApproved ? new Date() : undefined,
       }).returning();
 
       // Get collection details
@@ -33,20 +39,40 @@ export class PaymentService {
         throw new Error("Collection not found");
       }
 
-      // Create notification for admins/owners using transaction context
-      const [notification] = await tx.insert(notifications).values({
-        userId: data.recordedBy, // This will be sent to admins, but we track who triggered it
-        type: "payment_received",
-        title: "Payment Approval Required",
-        message: `Payment of ₹${(data.amount / 100).toFixed(2)} requires approval`,
-        collectionId: collection.id,
-        paymentId: newPayment.id,
-      }).returning();
+      // Only create approval notification if not auto-approved
+      if (!isAutoApproved) {
+        const [notification] = await tx.insert(notifications).values({
+          userId: data.recordedBy, // This will be sent to admins, but we track who triggered it
+          type: "payment_received",
+          title: "Payment Approval Required",
+          message: `Payment of ₹${(data.amount / 100).toFixed(2)} requires approval`,
+          collectionId: collection.id,
+          paymentId: newPayment.id,
+        }).returning();
+      }
+
+      // If auto-approved, update collection amounts immediately
+      if (isAutoApproved) {
+        await tx.update(collections)
+          .set({
+            outstandingAmount: sql`${collections.outstandingAmount} - ${data.amount}`,
+            paidAmount: sql`${collections.paidAmount} + ${data.amount}`,
+            status: sql`
+              CASE 
+                WHEN ${collections.outstandingAmount} - ${data.amount} <= 0 THEN 'paid'
+                WHEN ${collections.paidAmount} + ${data.amount} > 0 THEN 'partial'
+                ELSE ${collections.status}
+              END
+            `,
+            updatedAt: new Date(),
+          })
+          .where(eq(collections.id, data.collectionId));
+      }
 
       // Create audit log using transaction context
       const [auditLog] = await tx.insert(auditLogs).values({
         userId: data.recordedBy,
-        action: "payment_recorded",
+        action: isAutoApproved ? "payment_recorded_approved" : "payment_recorded",
         entityType: "payment",
         entityId: newPayment.id,
         newValue: newPayment,
@@ -110,7 +136,7 @@ export class PaymentService {
     return approvedPayment;
   }
 
-  async rejectPayment(paymentId: string, rejectedBy: string, reason: string): Promise<Payment> {
+  async rejectPayment(paymentId: string, rejectedBy: string, reason: string = "Not specified"): Promise<Payment> {
     const payment = await this.getPaymentById(paymentId);
     if (!payment) {
       throw new Error("Payment not found");
@@ -175,6 +201,30 @@ export class PaymentService {
       .from(payments)
       .where(eq(payments.status, "pending_approval"))
       .orderBy(desc(payments.createdAt));
+  }
+
+  async getPendingPayments(): Promise<any[]> {
+    const pendingPayments = await db.select({
+      id: payments.id,
+      amount: payments.amount,
+      paymentMode: payments.paymentMode,
+      paymentDate: payments.paymentDate,
+      referenceNumber: payments.referenceNumber,
+      status: payments.status,
+      recordedBy: payments.recordedBy,
+      collectionId: payments.collectionId,
+      createdAt: payments.createdAt,
+      collectionInvoice: collections.invoiceNumber,
+      customerName: collections.customerName,
+      recordedByName: users.fullName,
+    })
+    .from(payments)
+    .leftJoin(collections, eq(payments.collectionId, collections.id))
+    .leftJoin(users, eq(payments.recordedBy, users.id))
+    .where(eq(payments.status, "pending_approval"))
+    .orderBy(desc(payments.createdAt));
+
+    return pendingPayments;
   }
 
   async getPaymentsByStaff(staffId: string): Promise<Payment[]> {
