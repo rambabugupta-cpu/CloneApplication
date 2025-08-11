@@ -300,20 +300,19 @@ export default function Collections() {
               <TableHead>Status</TableHead>
               <TableHead>Aging</TableHead>
               <TableHead>Next Followup</TableHead>
-              <TableHead>Dispute</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   Loading collections...
                 </TableCell>
               </TableRow>
             ) : filteredCollections?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-8">
+                <TableCell colSpan={8} className="text-center py-8">
                   No collections found
                 </TableCell>
               </TableRow>
@@ -371,7 +370,9 @@ export default function Collections() {
                           <p className="font-medium">
                             Promise: {format(new Date(collection.latestCommunication.promisedDate), "dd MMM")}
                           </p>
-                        ) : null}
+                        ) : (
+                          <p className="text-gray-500">-</p>
+                        )}
                         
                         {collection.latestCommunication.type && (
                           <p className="text-gray-600 dark:text-gray-400 capitalize">
@@ -391,56 +392,19 @@ export default function Collections() {
                             {collection.latestCommunication.nextActionRequired}
                           </p>
                         )}
-                        
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="mt-1"
-                          onClick={() => {
-                            setSelectedCollection(collection);
-                            setShowCommunicationDialog(true);
-                          }}
-                        >
-                          Add Followup
-                        </Button>
                       </div>
                     ) : (
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => {
-                          setSelectedCollection(collection);
-                          setShowCommunicationDialog(true);
-                        }}
-                      >
-                        Schedule
-                      </Button>
+                      <p className="text-gray-500 text-sm">-</p>
                     )}
                   </TableCell>
                   <TableCell>
-                    {collection.disputeRaisedAt ? (
-                      <Badge className="bg-orange-500 text-white">
-                        <AlertCircle className="w-3 h-3 mr-1" />
-                        Disputed
-                      </Badge>
-                    ) : (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="text-orange-600 hover:text-orange-700"
-                        onClick={() => handleRaiseDispute(collection)}
-                      >
-                        Raise
-                      </Button>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       {(user?.role === 'staff' || user?.role === 'admin' || user?.role === 'owner') && (
                         <>
                           <Button
                             size="sm"
                             variant="outline"
+                            title="Record Payment"
                             onClick={() => {
                               setSelectedCollection(collection);
                               setShowPaymentDialog(true);
@@ -451,6 +415,7 @@ export default function Collections() {
                           <Button
                             size="sm"
                             variant="outline"
+                            title="Log Communication"
                             onClick={() => {
                               setSelectedCollection(collection);
                               setShowCommunicationDialog(true);
@@ -461,11 +426,29 @@ export default function Collections() {
                           <Button
                             size="sm"
                             variant="outline"
+                            title="Call Customer"
                             onClick={() => window.location.href = `tel:${collection.customerPhone}`}
                           >
                             <Phone className="h-4 w-4" />
                           </Button>
+                          {!collection.disputeRaisedAt && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="text-orange-600 hover:text-orange-700"
+                              title="Raise Dispute"
+                              onClick={() => handleRaiseDispute(collection)}
+                            >
+                              <AlertCircle className="h-4 w-4" />
+                            </Button>
+                          )}
                         </>
+                      )}
+                      {collection.disputeRaisedAt && (
+                        <Badge className="bg-orange-500 text-white">
+                          <AlertCircle className="w-3 h-3 mr-1" />
+                          Disputed
+                        </Badge>
                       )}
                     </div>
                   </TableCell>
@@ -482,7 +465,20 @@ export default function Collections() {
           <DialogHeader>
             <DialogTitle>Record Payment</DialogTitle>
             <DialogDescription>
-              Record a payment for invoice {selectedCollection?.invoiceNumber}
+              <div className="space-y-1 mt-2">
+                <p className="font-semibold text-base">{selectedCollection?.customerName}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  {selectedCollection?.customerAddress || 'Address not available'}
+                </p>
+                <p className="text-sm">
+                  <span className="font-medium">Mobile: </span>
+                  {selectedCollection?.customerPhone || 'Not available'}
+                </p>
+                <p className="text-sm">
+                  <span className="font-medium">Amount: </span>
+                  {formatCurrency(selectedCollection?.outstandingAmount || 0)}
+                </p>
+              </div>
             </DialogDescription>
           </DialogHeader>
           <Form {...paymentForm}>
