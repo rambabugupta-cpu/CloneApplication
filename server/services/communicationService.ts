@@ -25,12 +25,27 @@ export const communicationService = {
         }
       }
 
-      const [newCommunication] = await db.insert(communications).values({
-        ...data,
-        customerId,
+      // Ensure dates are properly formatted
+      const communicationData = {
+        collectionId: data.collectionId,
+        customerId: customerId,
+        type: data.type,
+        direction: data.direction,
+        subject: data.subject || null,
+        content: data.content,
+        outcome: data.outcome || null,
+        promisedAmount: data.promisedAmount || null,
+        promisedDate: data.promisedDate || null,
+        nextActionRequired: data.nextActionRequired || null,
+        nextActionDate: data.nextActionDate || null,
+        createdBy: data.createdBy,
         id: crypto.randomUUID(),
         createdAt: new Date(),
-      }).returning();
+      };
+
+      console.log("Inserting communication data:", communicationData);
+
+      const [newCommunication] = await db.insert(communications).values(communicationData).returning();
       return newCommunication;
     } catch (error) {
       console.error("Error creating communication:", error);

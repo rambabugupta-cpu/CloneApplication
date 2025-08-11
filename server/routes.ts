@@ -425,14 +425,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post("/api/collections/:id/communications", requireAuth, async (req, res) => {
     try {
       const collectionId = req.params.id; // Keep as string for UUID
+      console.log("Communication request body:", req.body);
+      console.log("Collection ID:", collectionId);
+      console.log("User ID:", req.session.userId);
+      
       const communicationData = {
         ...req.body,
         collectionId,
         createdBy: req.session.userId, // Changed from userId to createdBy
       };
+      
       const communication = await storage.createCommunication(communicationData);
       res.status(201).json(communication);
     } catch (error: any) {
+      console.error("Communication creation error:", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ error: "Invalid data", details: error.errors });
       }
