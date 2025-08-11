@@ -1321,6 +1321,15 @@ export default function Collections() {
           {selectedPaymentForEdit && (
             <Form {...paymentForm}>
               <form onSubmit={paymentForm.handleSubmit((data) => {
+                const editReasonText = (document.getElementById('edit-reason-payment') as HTMLTextAreaElement)?.value;
+                if (!editReasonText) {
+                  toast({
+                    title: "Error",
+                    description: "Please provide a reason for the edit",
+                    variant: "destructive",
+                  });
+                  return;
+                }
                 editPayment.mutate({
                   paymentId: selectedPaymentForEdit.id,
                   editData: {
@@ -1330,6 +1339,7 @@ export default function Collections() {
                     referenceNumber: data.referenceNumber,
                     bankName: data.bankName,
                     notes: data.notes,
+                    edit_reason: editReasonText,
                   },
                 });
               })} className="space-y-4">
@@ -1355,15 +1365,38 @@ export default function Collections() {
                   control={paymentForm.control}
                   name="paymentDate"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex flex-col">
                       <FormLabel>Payment Date</FormLabel>
-                      <FormControl>
-                        <Input
-                          type="date"
-                          {...field}
-                          defaultValue={selectedPaymentForEdit.paymentDate || new Date().toISOString().split('T')[0]}
-                        />
-                      </FormControl>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full pl-3 text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value ? (
+                                format(new Date(field.value), "PPP")
+                              ) : (
+                                <span>Pick a date</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value ? new Date(field.value) : undefined}
+                            onSelect={(date) => {
+                              field.onChange(date?.toISOString().split('T')[0] || '');
+                            }}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -1412,6 +1445,15 @@ export default function Collections() {
                     </FormItem>
                   )}
                 />
+                <div className="space-y-2">
+                  <Label htmlFor="edit-reason-payment">Reason for Edit (Required)</Label>
+                  <textarea
+                    id="edit-reason-payment"
+                    className="w-full min-h-[80px] p-2 border rounded text-black dark:text-white bg-white dark:bg-gray-800"
+                    placeholder="Please provide a reason for editing this payment..."
+                    required
+                  />
+                </div>
                 <div className="flex gap-2">
                   <Button type="submit" className="flex-1">
                     Submit Edit Request
@@ -1445,6 +1487,15 @@ export default function Collections() {
           {selectedCommunicationForEdit && (
             <Form {...communicationForm}>
               <form onSubmit={communicationForm.handleSubmit((data) => {
+                const editReasonText = (document.getElementById('edit-reason-communication') as HTMLTextAreaElement)?.value;
+                if (!editReasonText) {
+                  toast({
+                    title: "Error",
+                    description: "Please provide a reason for the edit",
+                    variant: "destructive",
+                  });
+                  return;
+                }
                 editCommunication.mutate({
                   communicationId: selectedCommunicationForEdit.id,
                   editData: {
@@ -1455,6 +1506,7 @@ export default function Collections() {
                     outcome: data.outcome,
                     promisedAmount: data.promisedAmount ? parseFloat(data.promisedAmount) * 100 : null,
                     promisedDate: data.promisedDate,
+                    edit_reason: editReasonText,
                   },
                 });
               })} className="space-y-4">
@@ -1528,6 +1580,15 @@ export default function Collections() {
                         <FormMessage />
                       </FormItem>
                     )}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-reason-communication">Reason for Edit (Required)</Label>
+                  <textarea
+                    id="edit-reason-communication"
+                    className="w-full min-h-[80px] p-2 border rounded text-black dark:text-white bg-white dark:bg-gray-800"
+                    placeholder="Please provide a reason for editing this communication..."
+                    required
                   />
                 </div>
                 <div className="flex gap-2">
