@@ -1166,7 +1166,7 @@ export default function Collections() {
               <p className="text-gray-500">No communication details available</p>
             )}
             <div className="flex gap-2">
-              {popupData?.latestCommunication && (
+              {popupData?.latestCommunication && user?.role !== 'customer' && (
                 <Button 
                   onClick={() => {
                     setSelectedCommunicationForEdit(popupData.latestCommunication);
@@ -1181,7 +1181,7 @@ export default function Collections() {
               )}
               <Button 
                 onClick={() => setShowNextFollowupPopup(false)}
-                className="flex-1"
+                className={popupData?.latestCommunication && user?.role !== 'customer' ? "flex-1" : "w-full"}
               >
                 Close
               </Button>
@@ -1593,6 +1593,9 @@ export default function Collections() {
                       <th className="text-left p-2 text-sm font-medium">Mode</th>
                       <th className="text-left p-2 text-sm font-medium">Reference</th>
                       <th className="text-left p-2 text-sm font-medium">Status</th>
+                      {user?.role !== 'customer' && (
+                        <th className="text-center p-2 text-sm font-medium">Action</th>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -1618,6 +1621,22 @@ export default function Collections() {
                             {payment.status === 'pending_approval' ? 'Pending' : payment.status}
                           </Badge>
                         </td>
+                        {user?.role !== 'customer' && (
+                          <td className="p-2 text-center">
+                            <Button
+                              onClick={() => {
+                                setSelectedPaymentForEdit(payment);
+                                setShowEditPaymentDialog(true);
+                                setShowPaymentHistoryDialog(false);
+                              }}
+                              variant="ghost"
+                              size="sm"
+                              title="Edit this payment"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -1630,7 +1649,7 @@ export default function Collections() {
                           .reduce((sum: number, p: any) => sum + (p.amount || 0), 0) / 100)
                           .toLocaleString('en-IN')}
                       </td>
-                      <td colSpan={3}></td>
+                      <td colSpan={user?.role !== 'customer' ? 4 : 3}></td>
                     </tr>
                   </tfoot>
                 </table>
