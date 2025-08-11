@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/hooks/use-user";
 import { queryClient } from "@/lib/queryClient";
@@ -442,174 +443,152 @@ export default function UserManagement() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4">
-          {approvalsHistory.edits?.map((editRequest: any) => (
-            <Card key={editRequest.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <CardTitle className="text-lg">
-                      {editRequest.entityType === 'payment' ? 'Payment Edit' : 'Communication Edit'}
-                    </CardTitle>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Entity ID: {editRequest.entityId}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Requested by: {editRequest.requestedByName || 'N/A'}
-                    </p>
-                  </div>
-                  {editRequest.status === 'pending' && (
-                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-                      <Clock className="h-3 w-3 mr-1" />
-                      Pending Approval
-                    </Badge>
-                  )}
-                  {editRequest.status === 'approved' && (
-                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Approved
-                    </Badge>
-                  )}
-                  {editRequest.status === 'rejected' && (
-                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
-                      <XCircle className="h-3 w-3 mr-1" />
-                      Rejected
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Request Date</p>
-                    <p className="font-medium">
-                      {editRequest.createdAt ? format(new Date(editRequest.createdAt), "dd MMM yyyy, hh:mm a") : 'N/A'}
-                    </p>
-                  </div>
-
-                </div>
-                
-                {editRequest.entityType === 'payment' && editRequest.newData && (
-                  <div className="border-t pt-4">
-                    <p className="text-sm font-medium mb-2">Proposed Changes:</p>
-                    <div className="grid grid-cols-2 gap-2 text-sm">
-                      {editRequest.newData.amount && (
-                        <div>
-                          <span className="text-muted-foreground">Amount: </span>
-                          <span className="font-medium">₹{(editRequest.newData.amount / 100).toLocaleString('en-IN')}</span>
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[100px]">Type</TableHead>
+                  <TableHead>Details</TableHead>
+                  <TableHead>Requested By</TableHead>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Reason</TableHead>
+                  <TableHead className="text-center">Status</TableHead>
+                  <TableHead className="text-center">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {approvalsHistory.edits?.map((editRequest: any) => (
+                  <TableRow key={editRequest.id}>
+                    <TableCell>
+                      <Badge variant={editRequest.entityType === 'payment' ? 'default' : 'secondary'}>
+                        {editRequest.entityType === 'payment' ? 'Payment' : 'Comm'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {editRequest.entityType === 'payment' && editRequest.newData ? (
+                        <div className="text-sm space-y-0.5">
+                          {editRequest.newData.amount && (
+                            <div>Amount: ₹{(editRequest.newData.amount / 100).toLocaleString('en-IN')}</div>
+                          )}
+                          {editRequest.newData.paymentMode && (
+                            <div>Mode: {editRequest.newData.paymentMode}</div>
+                          )}
+                          {editRequest.newData.referenceNumber && (
+                            <div>Ref: {editRequest.newData.referenceNumber}</div>
+                          )}
+                        </div>
+                      ) : editRequest.entityType === 'communication' && editRequest.newData ? (
+                        <div className="text-sm space-y-0.5">
+                          {editRequest.newData.outcome && (
+                            <div>Outcome: {editRequest.newData.outcome}</div>
+                          )}
+                          {editRequest.newData.content && (
+                            <div className="truncate max-w-[200px]" title={editRequest.newData.content}>
+                              {editRequest.newData.content}
+                            </div>
+                          )}
+                        </div>
+                      ) : 'N/A'}
+                    </TableCell>
+                    <TableCell>{editRequest.requestedByName || 'N/A'}</TableCell>
+                    <TableCell>
+                      {editRequest.createdAt ? format(new Date(editRequest.createdAt), "dd MMM yyyy") : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-[200px] truncate" title={editRequest.editReason}>
+                        {editRequest.editReason || 'No reason provided'}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {editRequest.status === 'pending' && (
+                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                          Pending
+                        </Badge>
+                      )}
+                      {editRequest.status === 'approved' && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                          Approved
+                        </Badge>
+                      )}
+                      {editRequest.status === 'rejected' && (
+                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                          Rejected
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {editRequest.status === 'pending' && (
+                        <div className="flex gap-1 justify-center">
+                          <Button
+                            size="sm"
+                            onClick={async () => {
+                              try {
+                                const response = await fetch(`/api/edits/${editRequest.id}/approve`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  credentials: "include",
+                                });
+                                if (response.ok) {
+                                  toast({
+                                    title: "Edit Approved",
+                                    description: "The edit request has been approved successfully.",
+                                  });
+                                  queryClient.invalidateQueries({ queryKey: ["/api/edits/pending"] });
+                                }
+                              } catch (error) {
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to approve edit request",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                            disabled={processingId === editRequest.id}
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={async () => {
+                              try {
+                                const response = await fetch(`/api/edits/${editRequest.id}/reject`, {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  credentials: "include",
+                                });
+                                if (response.ok) {
+                                  toast({
+                                    title: "Edit Rejected",
+                                    description: "The edit request has been rejected.",
+                                  });
+                                  queryClient.invalidateQueries({ queryKey: ["/api/edits/pending"] });
+                                }
+                              } catch (error) {
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to reject edit request",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                            disabled={processingId === editRequest.id}
+                          >
+                            <XCircle className="h-4 w-4" />
+                          </Button>
                         </div>
                       )}
-                      {editRequest.newData.paymentMode && (
-                        <div>
-                          <span className="text-muted-foreground">Mode: </span>
-                          <span className="font-medium capitalize">{editRequest.newData.paymentMode}</span>
-                        </div>
+                      {editRequest.status !== 'pending' && (
+                        <span className="text-sm text-muted-foreground">-</span>
                       )}
-                      {editRequest.newData.referenceNumber && (
-                        <div>
-                          <span className="text-muted-foreground">Reference: </span>
-                          <span className="font-medium">{editRequest.newData.referenceNumber}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {editRequest.entityType === 'communication' && editRequest.newData && (
-                  <div className="border-t pt-4">
-                    <p className="text-sm font-medium mb-2">Proposed Changes:</p>
-                    <div className="space-y-2 text-sm">
-                      {editRequest.newData.content && (
-                        <div>
-                          <span className="text-muted-foreground">Content: </span>
-                          <p className="font-medium mt-1">{editRequest.newData.content}</p>
-                        </div>
-                      )}
-                      {editRequest.newData.outcome && (
-                        <div>
-                          <span className="text-muted-foreground">Outcome: </span>
-                          <span className="font-medium">{editRequest.newData.outcome}</span>
-                        </div>
-                      )}
-                      {editRequest.newData.nextActionDate && (
-                        <div>
-                          <span className="text-muted-foreground">Next Action: </span>
-                          <span className="font-medium">
-                            {format(new Date(editRequest.newData.nextActionDate), "dd MMM yyyy")}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {editRequest.status === 'pending' && (
-                  <div className="flex gap-2">
-                    <Button
-                      className="flex-1"
-                      onClick={async () => {
-                      try {
-                        const response = await fetch(`/api/edits/${editRequest.id}/approve`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          credentials: "include",
-                        });
-                        if (response.ok) {
-                          toast({
-                            title: "Edit Approved",
-                            description: "The edit request has been approved successfully.",
-                          });
-                          queryClient.invalidateQueries({ queryKey: ["/api/edits/pending"] });
-                        }
-                      } catch (error) {
-                        toast({
-                          title: "Error",
-                          description: "Failed to approve edit request",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                    disabled={processingId === editRequest.id}
-                  >
-                    <CheckCircle className="h-4 w-4 mr-2" />
-                    Approve Edit
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    className="flex-1"
-                    onClick={async () => {
-                      try {
-                        const response = await fetch(`/api/edits/${editRequest.id}/reject`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          credentials: "include",
-                        });
-                        if (response.ok) {
-                          toast({
-                            title: "Edit Rejected",
-                            description: "The edit request has been rejected.",
-                          });
-                          queryClient.invalidateQueries({ queryKey: ["/api/edits/pending"] });
-                        }
-                      } catch (error) {
-                        toast({
-                          title: "Error",
-                          description: "Failed to reject edit request",
-                          variant: "destructive",
-                        });
-                      }
-                    }}
-                    disabled={processingId === editRequest.id}
-                  >
-                    <XCircle className="h-4 w-4 mr-2" />
-                    Reject Edit
-                  </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </TabsContent>
   </Tabs>
