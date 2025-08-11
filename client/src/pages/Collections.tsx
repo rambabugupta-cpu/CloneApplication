@@ -239,9 +239,9 @@ export default function Collections() {
     const Icon = config.icon;
 
     return (
-      <Badge className={`${config.color} text-white text-xs py-0 px-1.5`}>
-        <Icon className="w-3 h-3 mr-0.5" />
-        {config.label}
+      <Badge className={`${config.color} text-white text-xs py-0 px-1`}>
+        <Icon className="w-2.5 h-2.5 mr-0.5" />
+        <span className="text-[10px]">{config.label}</span>
       </Badge>
     );
   };
@@ -307,9 +307,9 @@ export default function Collections() {
           <TableHeader>
             <TableRow className="bg-gray-50 dark:bg-gray-900">
               <TableHead className="font-semibold w-[35%]">Customer</TableHead>
-              <TableHead className="font-semibold w-[15%]">Outstanding</TableHead>
-              <TableHead className="font-semibold w-[12%]">Status</TableHead>
-              <TableHead className="font-semibold w-[15%]">Next Followup</TableHead>
+              <TableHead className="font-semibold w-[10%]">Outstanding</TableHead>
+              <TableHead className="font-semibold w-[10%]">Status</TableHead>
+              <TableHead className="font-semibold w-[22%]">Next Followup</TableHead>
               <TableHead className="font-semibold text-center w-[23%]">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -350,17 +350,7 @@ export default function Collections() {
                     </div>
                   </TableCell>
                   <TableCell className="py-2">
-                    <div className="flex items-center gap-2 text-sm">
-                      <span className="font-bold">{formatCurrency(collection.outstandingAmount)}</span>
-                      {collection.paidAmount > 0 && (
-                        <>
-                          <span className="text-gray-400">•</span>
-                          <span className="text-xs text-green-600">
-                            P: {formatCurrency(collection.paidAmount)}
-                          </span>
-                        </>
-                      )}
-                    </div>
+                    <span className="font-bold text-sm">{formatCurrency(collection.outstandingAmount)}</span>
                   </TableCell>
                   <TableCell className="py-2">
                     <div className="flex items-center gap-2">
@@ -377,23 +367,14 @@ export default function Collections() {
                       <div className="flex items-center gap-2 text-xs">
                         {collection.latestCommunication.nextActionDate ? (
                           <span className="font-medium">
-                            {format(new Date(collection.latestCommunication.nextActionDate), "dd MMM")}
+                            {format(new Date(collection.latestCommunication.nextActionDate), "dd MMM yyyy")}
                           </span>
                         ) : collection.latestCommunication.promisedDate ? (
                           <span className="font-medium">
-                            P: {format(new Date(collection.latestCommunication.promisedDate), "dd MMM")}
+                            Promise: {format(new Date(collection.latestCommunication.promisedDate), "dd MMM yyyy")}
                           </span>
                         ) : (
                           <span className="text-gray-500">-</span>
-                        )}
-                        
-                        {collection.latestCommunication.type && (
-                          <>
-                            <span className="text-gray-400">•</span>
-                            <span className="text-gray-600 dark:text-gray-400 capitalize">
-                              {collection.latestCommunication.type}
-                            </span>
-                          </>
                         )}
                         
                         {collection.latestCommunication.promisedAmount && (
