@@ -225,89 +225,95 @@ export default function UserManagement() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4">
-              {approvalsHistory.payments?.map((payment: any) => (
-                <Card key={payment.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <CardTitle className="text-xl">
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Customer</TableHead>
+                      <TableHead>Invoice</TableHead>
+                      <TableHead>Mode</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Reference</TableHead>
+                      <TableHead>Recorded By</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {approvalsHistory.payments?.map((payment: any) => (
+                      <TableRow key={payment.id}>
+                        <TableCell className="font-semibold">
                           {formatCurrency(payment.amount)}
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          Customer: {payment.customerName || 'N/A'}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          Invoice: {payment.collectionInvoice || 'N/A'}
-                        </p>
-                      </div>
-                      {payment.status === 'pending' && (
-                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-                          <Clock className="h-3 w-3 mr-1" />
-                          Pending Approval
-                        </Badge>
-                      )}
-                      {payment.status === 'approved' && (
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Approved
-                        </Badge>
-                      )}
-                      {payment.status === 'rejected' && (
-                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
-                          <XCircle className="h-3 w-3 mr-1" />
-                          Rejected
-                        </Badge>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                      <div>
-                        <p className="text-muted-foreground">Payment Mode</p>
-                        <p className="font-medium capitalize">{payment.paymentMode}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Payment Date</p>
-                        <p className="font-medium">
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-[150px] truncate" title={payment.customerName || 'N/A'}>
+                            {payment.customerName || 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-[100px] truncate" title={payment.collectionInvoice || 'N/A'}>
+                            {payment.collectionInvoice || 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell className="capitalize">{payment.paymentMode}</TableCell>
+                        <TableCell>
                           {payment.paymentDate ? format(new Date(payment.paymentDate), "dd MMM yyyy") : 'N/A'}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Reference</p>
-                        <p className="font-medium">{payment.referenceNumber || 'N/A'}</p>
-                      </div>
-                      <div>
-                        <p className="text-muted-foreground">Recorded By</p>
-                        <p className="font-medium">{payment.recordedByName || 'Unknown'}</p>
-                      </div>
-                    </div>
-                    {payment.status === 'pending' && (
-                      <div className="flex justify-end gap-2 pt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRejectPayment(payment.id)}
-                          disabled={processingId === payment.id}
-                        >
-                          <XCircle className="h-4 w-4 mr-2" />
-                          Reject
-                        </Button>
-                        <Button
-                          variant="default"
-                          size="sm"
-                          onClick={() => handleApprovePayment(payment.id)}
-                          disabled={processingId === payment.id}
-                        >
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Approve Payment
-                        </Button>
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-[100px] truncate" title={payment.referenceNumber || 'N/A'}>
+                            {payment.referenceNumber || 'N/A'}
+                          </div>
+                        </TableCell>
+                        <TableCell>{payment.recordedByName || 'Unknown'}</TableCell>
+                        <TableCell className="text-center">
+                          {payment.status === 'pending' && (
+                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                              Pending
+                            </Badge>
+                          )}
+                          {payment.status === 'approved' && (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                              Approved
+                            </Badge>
+                          )}
+                          {payment.status === 'rejected' && (
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                              Rejected
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {payment.status === 'pending' && (
+                            <div className="flex gap-1 justify-center">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApprovePayment(payment.id)}
+                                disabled={processingId === payment.id}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleRejectPayment(payment.id)}
+                                disabled={processingId === payment.id}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                          {payment.status !== 'pending' && (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           )}
         </TabsContent>
 
@@ -335,89 +341,95 @@ export default function UserManagement() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4">
-              {approvalsHistory.users?.map((pendingUser: any) => (
-                <Card key={pendingUser.id} className="hover:shadow-lg transition-shadow">
-                  <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div className="space-y-1">
-                    <CardTitle className="text-xl">{pendingUser.fullName || pendingUser.name || "No Name"}</CardTitle>
-                    {pendingUser.status === 'pending' && (
-                      <Badge variant="outline" className="mt-2 bg-yellow-50 text-yellow-700 border-yellow-300">
-                        <Clock className="h-3 w-3 mr-1" />
-                        Pending Approval
-                      </Badge>
-                    )}
-                    {pendingUser.status === 'active' && (
-                      <Badge variant="outline" className="mt-2 bg-green-50 text-green-700 border-green-300">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Active
-                      </Badge>
-                    )}
-                    {pendingUser.status === 'rejected' && (
-                      <Badge variant="outline" className="mt-2 bg-red-50 text-red-700 border-red-300">
-                        <XCircle className="h-3 w-3 mr-1" />
-                        Rejected
-                      </Badge>
-                    )}
-                  </div>
-                  {pendingUser.status === 'pending' && (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        onClick={() => handleApprove(pendingUser.id)}
-                        disabled={processingId === pendingUser.id}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleReject(pendingUser.id)}
-                        disabled={processingId === pendingUser.id}
-                      >
-                        <XCircle className="h-4 w-4 mr-1" />
-                        Reject
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Mail className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Email:</span>
-                    <span className="font-medium">{pendingUser.email}</span>
-                  </div>
-                  {pendingUser.phoneNumber && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-muted-foreground">Phone:</span>
-                      <span className="font-medium">{pendingUser.phoneNumber}</span>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Registered:</span>
-                    <span className="font-medium">
-                      {new Date(pendingUser.createdAt).toLocaleDateString()}
-                    </span>
-                  </div>
-                </div>
-                {pendingUser.bio && (
-                  <div className="mt-4 p-3 bg-muted rounded-lg">
-                    <p className="text-sm">{pendingUser.bio}</p>
-                  </div>
-                )}
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Registered</TableHead>
+                      <TableHead>Bio</TableHead>
+                      <TableHead className="text-center">Status</TableHead>
+                      <TableHead className="text-center">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {approvalsHistory.users?.map((pendingUser: any) => (
+                      <TableRow key={pendingUser.id}>
+                        <TableCell className="font-medium">
+                          {pendingUser.fullName || pendingUser.name || "No Name"}
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-[180px] truncate" title={pendingUser.email}>
+                            {pendingUser.email}
+                          </div>
+                        </TableCell>
+                        <TableCell>{pendingUser.phoneNumber || 'N/A'}</TableCell>
+                        <TableCell className="capitalize">{pendingUser.role || 'employee'}</TableCell>
+                        <TableCell>
+                          {new Date(pendingUser.createdAt).toLocaleDateString()}
+                        </TableCell>
+                        <TableCell>
+                          {pendingUser.bio ? (
+                            <div className="max-w-[200px] truncate" title={pendingUser.bio}>
+                              {pendingUser.bio}
+                            </div>
+                          ) : (
+                            'N/A'
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {pendingUser.status === 'pending' && (
+                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                              Pending
+                            </Badge>
+                          )}
+                          {pendingUser.status === 'active' && (
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                              Active
+                            </Badge>
+                          )}
+                          {pendingUser.status === 'rejected' && (
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                              Rejected
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {pendingUser.status === 'pending' && (
+                            <div className="flex gap-1 justify-center">
+                              <Button
+                                size="sm"
+                                onClick={() => handleApprove(pendingUser.id)}
+                                disabled={processingId === pendingUser.id}
+                              >
+                                <CheckCircle className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleReject(pendingUser.id)}
+                                disabled={processingId === pendingUser.id}
+                              >
+                                <XCircle className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          )}
+                          {pendingUser.status !== 'pending' && (
+                            <span className="text-sm text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
-    </TabsContent>
+          )}
+        </TabsContent>
 
     <TabsContent value="edits" className="space-y-4">
       <div className="mb-4 flex gap-2">
