@@ -239,6 +239,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get user statistics
+  app.get("/api/users/statistics", requireAuth, async (req, res) => {
+    try {
+      // Check if user is admin or owner
+      const currentUser = await storage.getUserById(req.session.userId!);
+      if (currentUser?.role !== "admin" && currentUser?.role !== "owner") {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      const users = await storage.getUsers();
+      const stats = {
+        total: users.length,
+        active: users.filter((u: any) => u.status === "approved").length,
+        pending: users.filter((u: any) => u.status === "pending").length,
+        inactive: users.filter((u: any) => u.status === "rejected").length
+      };
+
+      res.json(stats);
+    } catch (error: any) {
+      console.error("Get user statistics error:", error);
+      res.status(500).json({ error: "Failed to get user statistics" });
+    }
+  });
+
+  // Get all approvals history
+  app.get("/api/approvals/history", requireAuth, async (req, res) => {
+    try {
+      // Check if user is admin or owner
+      const currentUser = await storage.getUserById(req.session.userId!);
+      if (currentUser?.role !== "admin" && currentUser?.role !== "owner") {
+        return res.status(403).json({ error: "Admin access required" });
+      }
+
+      // Get all payments
+      const allPayments = await storage.getAllPayments();
+      
+      // Get all users
+      const allUsers = await storage.getUsers();
+      
+      // Get all edit requests
+      const allEdits = await storage.getAllEditRequests();
+
+      res.json({
+        payments: allPayments || [],
+        users: allUsers || [],
+        edits: allEdits || []
+      });
+    } catch (error: any) {
+      console.error("Get approvals history error:", error);
+      res.status(500).json({ error: "Failed to get approvals history" });
+    }
+  });
+
   // Get all users by role
   app.get("/api/users", requireAuth, async (req, res) => {
     try {

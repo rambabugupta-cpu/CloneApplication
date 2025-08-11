@@ -126,6 +126,14 @@ export class DatabaseStorage {
     return await paymentService.rejectPayment(paymentId, rejectedBy);
   }
 
+  async getAllPayments() {
+    return await paymentService.getAllPayments();
+  }
+
+  async getAllEditRequests() {
+    return await editService.getAllEditRequests();
+  }
+
   // Customer operations for Excel import
   async getCustomerByName(name: string) {
     if (!name) return null;

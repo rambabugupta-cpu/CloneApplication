@@ -58,6 +58,18 @@ export default function UserManagement() {
     enabled: !!user && (user.role === "owner" || user.role === "admin"),
   });
 
+  // Fetch user statistics
+  const { data: userStats = { total: 0, active: 0, pending: 0, inactive: 0 } } = useQuery({
+    queryKey: ["/api/users/statistics"],
+    enabled: !!user && (user.role === "owner" || user.role === "admin"),
+  });
+
+  // Fetch all approvals history
+  const { data: approvalsHistory = { payments: [], users: [], edits: [] } } = useQuery({
+    queryKey: ["/api/approvals/history"],
+    enabled: !!user && (user.role === "owner" || user.role === "admin"),
+  });
+
   const approveMutation = useMutation({
     mutationFn: async ({ userId, status }: { userId: string; status: "approved" | "rejected" }) => {
       const response = await fetch(`/api/users/${userId}/approve`, {
@@ -168,7 +180,7 @@ export default function UserManagement() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Pending Approvals</h1>
+        <h1 className="text-3xl font-bold">Approvals Management</h1>
         <div className="flex gap-2">
           <Badge variant="secondary" className="text-lg px-4 py-2">
             <Users className="h-5 w-5 mr-2" />
@@ -189,19 +201,31 @@ export default function UserManagement() {
         </TabsList>
 
         <TabsContent value="payments" className="space-y-4">
-          {pendingPayments.length === 0 ? (
+          <div className="mb-4 flex gap-2">
+            <Badge variant="secondary">Total: {approvalsHistory.payments?.length || 0}</Badge>
+            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+              Pending: {approvalsHistory.payments?.filter((p: any) => p.status === 'pending').length || 0}
+            </Badge>
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+              Approved: {approvalsHistory.payments?.filter((p: any) => p.status === 'approved').length || 0}
+            </Badge>
+            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+              Rejected: {approvalsHistory.payments?.filter((p: any) => p.status === 'rejected').length || 0}
+            </Badge>
+          </div>
+          {approvalsHistory.payments?.length === 0 ? (
             <Card>
               <CardContent className="p-12 text-center">
-                <CheckCircle className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No Pending Payments</h3>
+                <CreditCard className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No Payment Records</h3>
                 <p className="text-muted-foreground">
-                  All payment approvals have been processed.
+                  No payment approvals to display.
                 </p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-4">
-              {pendingPayments.map((payment: any) => (
+              {approvalsHistory.payments?.map((payment: any) => (
                 <Card key={payment.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="flex justify-between items-start">
@@ -216,10 +240,24 @@ export default function UserManagement() {
                           Invoice: {payment.collectionInvoice || 'N/A'}
                         </p>
                       </div>
-                      <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-                        <Clock className="h-3 w-3 mr-1" />
-                        Pending Approval
-                      </Badge>
+                      {payment.status === 'pending' && (
+                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                          <Clock className="h-3 w-3 mr-1" />
+                          Pending Approval
+                        </Badge>
+                      )}
+                      {payment.status === 'approved' && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Approved
+                        </Badge>
+                      )}
+                      {payment.status === 'rejected' && (
+                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                          <XCircle className="h-3 w-3 mr-1" />
+                          Rejected
+                        </Badge>
+                      )}
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -243,26 +281,28 @@ export default function UserManagement() {
                         <p className="font-medium">{payment.recordedByName || 'Unknown'}</p>
                       </div>
                     </div>
-                    <div className="flex justify-end gap-2 pt-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleRejectPayment(payment.id)}
-                        disabled={processingId === payment.id}
-                      >
-                        <XCircle className="h-4 w-4 mr-2" />
-                        Reject
-                      </Button>
-                      <Button
-                        variant="default"
-                        size="sm"
-                        onClick={() => handleApprovePayment(payment.id)}
-                        disabled={processingId === payment.id}
-                      >
-                        <CheckCircle className="h-4 w-4 mr-2" />
-                        Approve Payment
-                      </Button>
-                    </div>
+                    {payment.status === 'pending' && (
+                      <div className="flex justify-end gap-2 pt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleRejectPayment(payment.id)}
+                          disabled={processingId === payment.id}
+                        >
+                          <XCircle className="h-4 w-4 mr-2" />
+                          Reject
+                        </Button>
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={() => handleApprovePayment(payment.id)}
+                          disabled={processingId === payment.id}
+                        >
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Approve Payment
+                        </Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
@@ -271,49 +311,77 @@ export default function UserManagement() {
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
-          {pendingUsers.length === 0 ? (
+          <div className="mb-4 flex gap-2">
+            <Badge variant="secondary">Total: {approvalsHistory.users?.length || 0}</Badge>
+            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+              Pending: {approvalsHistory.users?.filter((u: any) => u.status === 'pending').length || 0}
+            </Badge>
+            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+              Active: {approvalsHistory.users?.filter((u: any) => u.status === 'active').length || 0}
+            </Badge>
+            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+              Rejected: {approvalsHistory.users?.filter((u: any) => u.status === 'rejected').length || 0}
+            </Badge>
+          </div>
+          {approvalsHistory.users?.length === 0 ? (
             <Card>
               <CardContent className="p-12 text-center">
-                <UserCheck className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No Pending Users</h3>
+                <Users className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No User Records</h3>
                 <p className="text-muted-foreground">
-                  All user registrations have been processed.
+                  No user approvals to display.
                 </p>
               </CardContent>
             </Card>
           ) : (
             <div className="grid gap-4">
-              {pendingUsers.map((pendingUser: any) => (
+              {approvalsHistory.users?.map((pendingUser: any) => (
                 <Card key={pendingUser.id} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                 <div className="flex items-start justify-between">
                   <div className="space-y-1">
                     <CardTitle className="text-xl">{pendingUser.fullName || pendingUser.name || "No Name"}</CardTitle>
-                    <Badge variant="outline" className="mt-2">
-                      <Clock className="h-3 w-3 mr-1" />
-                      Pending Approval
-                    </Badge>
+                    {pendingUser.status === 'pending' && (
+                      <Badge variant="outline" className="mt-2 bg-yellow-50 text-yellow-700 border-yellow-300">
+                        <Clock className="h-3 w-3 mr-1" />
+                        Pending Approval
+                      </Badge>
+                    )}
+                    {pendingUser.status === 'active' && (
+                      <Badge variant="outline" className="mt-2 bg-green-50 text-green-700 border-green-300">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Active
+                      </Badge>
+                    )}
+                    {pendingUser.status === 'rejected' && (
+                      <Badge variant="outline" className="mt-2 bg-red-50 text-red-700 border-red-300">
+                        <XCircle className="h-3 w-3 mr-1" />
+                        Rejected
+                      </Badge>
+                    )}
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => handleApprove(pendingUser.id)}
-                      disabled={processingId === pendingUser.id}
-                      className="bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      Approve
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleReject(pendingUser.id)}
-                      disabled={processingId === pendingUser.id}
-                    >
-                      <XCircle className="h-4 w-4 mr-1" />
-                      Reject
-                    </Button>
-                  </div>
+                  {pendingUser.status === 'pending' && (
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => handleApprove(pendingUser.id)}
+                        disabled={processingId === pendingUser.id}
+                        className="bg-green-600 hover:bg-green-700"
+                      >
+                        <CheckCircle className="h-4 w-4 mr-1" />
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleReject(pendingUser.id)}
+                        disabled={processingId === pendingUser.id}
+                      >
+                        <XCircle className="h-4 w-4 mr-1" />
+                        Reject
+                      </Button>
+                    </div>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -351,19 +419,31 @@ export default function UserManagement() {
     </TabsContent>
 
     <TabsContent value="edits" className="space-y-4">
-      {pendingEditRequests.length === 0 ? (
+      <div className="mb-4 flex gap-2">
+        <Badge variant="secondary">Total: {approvalsHistory.edits?.length || 0}</Badge>
+        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+          Pending: {approvalsHistory.edits?.filter((e: any) => e.status === 'pending').length || 0}
+        </Badge>
+        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+          Approved: {approvalsHistory.edits?.filter((e: any) => e.status === 'approved').length || 0}
+        </Badge>
+        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+          Rejected: {approvalsHistory.edits?.filter((e: any) => e.status === 'rejected').length || 0}
+        </Badge>
+      </div>
+      {approvalsHistory.edits?.length === 0 ? (
         <Card>
           <CardContent className="p-12 text-center">
             <Edit className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-xl font-semibold mb-2">No Edit Requests</h3>
             <p className="text-muted-foreground">
-              All edit requests have been processed.
+              No edit requests to display.
             </p>
           </CardContent>
         </Card>
       ) : (
         <div className="grid gap-4">
-          {pendingEditRequests.map((editRequest: any) => (
+          {approvalsHistory.edits?.map((editRequest: any) => (
             <Card key={editRequest.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex justify-between items-start">
@@ -378,10 +458,24 @@ export default function UserManagement() {
                       Requested by: {editRequest.requestedByName || 'N/A'}
                     </p>
                   </div>
-                  <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-                    <Clock className="h-3 w-3 mr-1" />
-                    Pending Approval
-                  </Badge>
+                  {editRequest.status === 'pending' && (
+                    <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                      <Clock className="h-3 w-3 mr-1" />
+                      Pending Approval
+                    </Badge>
+                  )}
+                  {editRequest.status === 'approved' && (
+                    <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Approved
+                    </Badge>
+                  )}
+                  {editRequest.status === 'rejected' && (
+                    <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                      <XCircle className="h-3 w-3 mr-1" />
+                      Rejected
+                    </Badge>
+                  )}
                 </div>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -449,10 +543,11 @@ export default function UserManagement() {
                   </div>
                 )}
 
-                <div className="flex gap-2">
-                  <Button
-                    className="flex-1"
-                    onClick={async () => {
+                {editRequest.status === 'pending' && (
+                  <div className="flex gap-2">
+                    <Button
+                      className="flex-1"
+                      onClick={async () => {
                       try {
                         const response = await fetch(`/api/edits/${editRequest.id}/approve`, {
                           method: "POST",
@@ -509,7 +604,8 @@ export default function UserManagement() {
                     <XCircle className="h-4 w-4 mr-2" />
                     Reject Edit
                   </Button>
-                </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
@@ -526,19 +622,19 @@ export default function UserManagement() {
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="text-center p-4 bg-blue-50 dark:bg-blue-950 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">0</div>
+              <div className="text-2xl font-bold text-blue-600">{userStats.total}</div>
               <div className="text-sm text-muted-foreground mt-1">Total Users</div>
             </div>
             <div className="text-center p-4 bg-green-50 dark:bg-green-950 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">0</div>
+              <div className="text-2xl font-bold text-green-600">{userStats.active}</div>
               <div className="text-sm text-muted-foreground mt-1">Active Users</div>
             </div>
             <div className="text-center p-4 bg-yellow-50 dark:bg-yellow-950 rounded-lg">
-              <div className="text-2xl font-bold text-yellow-600">{pendingUsers.length}</div>
+              <div className="text-2xl font-bold text-yellow-600">{userStats.pending}</div>
               <div className="text-sm text-muted-foreground mt-1">Pending Approval</div>
             </div>
             <div className="text-center p-4 bg-red-50 dark:bg-red-950 rounded-lg">
-              <div className="text-2xl font-bold text-red-600">0</div>
+              <div className="text-2xl font-bold text-red-600">{userStats.inactive}</div>
               <div className="text-sm text-muted-foreground mt-1">Inactive Users</div>
             </div>
           </div>

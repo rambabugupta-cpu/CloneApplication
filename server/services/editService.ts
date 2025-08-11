@@ -3,9 +3,10 @@ import {
   paymentEdits, 
   communicationEdits,
   payments,
-  communications
+  communications,
+  users
 } from "@shared/schema";
-import { eq, and, lte } from "drizzle-orm";
+import { eq, and, lte, desc, sql } from "drizzle-orm";
 
 type PaymentEdit = typeof paymentEdits.$inferSelect;
 type CommunicationEdit = typeof communicationEdits.$inferSelect;
@@ -269,6 +270,57 @@ export class EditService {
       .from(communicationEdits)
       .where(eq(communicationEdits.communicationId, communicationId))
       .orderBy(communicationEdits.createdAt);
+  }
+
+  // Get all edit requests (for history view)
+  async getAllEditRequests(): Promise<any[]> {
+    const paymentEditsList = await db.select({
+      id: paymentEdits.id,
+      entityType: sql<string>`'payment'`,
+      entityId: paymentEdits.paymentId,
+      requestedBy: paymentEdits.editedBy,
+      requestedByName: users.fullName,
+      newData: sql<any>`json_build_object(
+        'amount', ${paymentEdits.newAmount},
+        'paymentDate', ${paymentEdits.newPaymentDate},
+        'paymentMode', ${paymentEdits.newPaymentMode},
+        'referenceNumber', ${paymentEdits.newReferenceNumber}
+      )`,
+      editReason: paymentEdits.editReason,
+      status: paymentEdits.status,
+      createdAt: paymentEdits.createdAt,
+      processedAt: paymentEdits.approvedAt,
+      processedBy: paymentEdits.approvedBy
+    })
+    .from(paymentEdits)
+    .leftJoin(users, eq(paymentEdits.editedBy, users.id))
+    .orderBy(desc(paymentEdits.createdAt));
+
+    const communicationEditsList = await db.select({
+      id: communicationEdits.id,
+      entityType: sql<string>`'communication'`,
+      entityId: communicationEdits.communicationId,
+      requestedBy: communicationEdits.editedBy,
+      requestedByName: users.fullName,
+      newData: sql<any>`json_build_object(
+        'content', ${communicationEdits.newContent},
+        'outcome', ${communicationEdits.newOutcome},
+        'promisedDate', ${communicationEdits.newPromisedDate},
+        'nextActionDate', ${communicationEdits.newNextActionDate}
+      )`,
+      editReason: communicationEdits.editReason,
+      status: communicationEdits.status,
+      createdAt: communicationEdits.createdAt,
+      processedAt: communicationEdits.approvedAt,
+      processedBy: communicationEdits.approvedBy
+    })
+    .from(communicationEdits)
+    .leftJoin(users, eq(communicationEdits.editedBy, users.id))
+    .orderBy(desc(communicationEdits.createdAt));
+
+    return [...paymentEditsList, ...communicationEditsList].sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
   }
 }
 
