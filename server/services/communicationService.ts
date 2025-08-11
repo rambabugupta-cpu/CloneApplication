@@ -3,6 +3,16 @@ import { communications } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export const communicationService = {
+  async getCommunicationById(id: string) {
+    try {
+      const [communication] = await db.select().from(communications).where(eq(communications.id, id)).limit(1);
+      return communication;
+    } catch (error) {
+      console.error("Error fetching communication:", error);
+      return undefined;
+    }
+  },
+
   async getCommunicationsByCollection(collectionId: string) {
     try {
       const result = await db.select().from(communications).where(eq(communications.collectionId, collectionId));

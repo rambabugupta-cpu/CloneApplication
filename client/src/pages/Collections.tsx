@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -53,6 +53,7 @@ import {
   Clock,
   MessageSquare,
   DollarSign,
+  Edit,
   FileText,
   ClipboardList,
   MessageCircle,
@@ -67,7 +68,6 @@ import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { apiRequest } from "@/lib/queryClient";
 
 const paymentSchema = z.object({
   amount: z.string().min(1, "Amount is required"),
@@ -106,6 +106,10 @@ export default function Collections() {
   const [showPaymentHistoryDialog, setShowPaymentHistoryDialog] = useState(false);
   const [popupData, setPopupData] = useState<any>(null);
   const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
+  const [showEditPaymentDialog, setShowEditPaymentDialog] = useState(false);
+  const [showEditCommunicationDialog, setShowEditCommunicationDialog] = useState(false);
+  const [selectedPaymentForEdit, setSelectedPaymentForEdit] = useState<any>(null);
+  const [selectedCommunicationForEdit, setSelectedCommunicationForEdit] = useState<any>(null);
 
   const { data: collections, isLoading } = useQuery({
     queryKey: ["/api/collections", statusFilter, searchTerm],
@@ -230,6 +234,58 @@ export default function Collections() {
       toast({
         title: "Error",
         description: error.message || "Failed to raise dispute",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Edit Payment Mutation
+  const editPayment = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest(`/api/payments/${data.paymentId}/edit`, {
+        method: "POST",
+        body: JSON.stringify(data.editData),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Edit Request Submitted",
+        description: "Your edit request has been submitted. It will be auto-approved after 30 minutes if not reviewed.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      setShowEditPaymentDialog(false);
+      setSelectedPaymentForEdit(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit edit request",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Edit Communication Mutation
+  const editCommunication = useMutation({
+    mutationFn: async (data: any) => {
+      return apiRequest(`/api/communications/${data.communicationId}/edit`, {
+        method: "POST",
+        body: JSON.stringify(data.editData),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Edit Request Submitted",
+        description: "Your edit request has been submitted. It will be auto-approved after 30 minutes if not reviewed.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      setShowEditCommunicationDialog(false);
+      setSelectedCommunicationForEdit(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to submit edit request",
         variant: "destructive",
       });
     },
@@ -1109,12 +1165,27 @@ export default function Collections() {
             ) : (
               <p className="text-gray-500">No communication details available</p>
             )}
-            <Button 
-              onClick={() => setShowNextFollowupPopup(false)}
-              className="w-full"
-            >
-              Close
-            </Button>
+            <div className="flex gap-2">
+              {popupData?.latestCommunication && (
+                <Button 
+                  onClick={() => {
+                    setSelectedCommunicationForEdit(popupData.latestCommunication);
+                    setShowEditCommunicationDialog(true);
+                  }}
+                  variant="outline"
+                  className="flex-1 flex items-center gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit Followup
+                </Button>
+              )}
+              <Button 
+                onClick={() => setShowNextFollowupPopup(false)}
+                className="flex-1"
+              >
+                Close
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>
@@ -1193,13 +1264,312 @@ export default function Collections() {
               </div>
             </div>
 
-            <Button 
-              onClick={() => setShowLastPaymentPopup(false)}
-              className="w-full"
-            >
-              Close
-            </Button>
+            <div className="flex gap-2">
+              {popupData?.lastPaymentId && (
+                <Button 
+                  onClick={async () => {
+                    try {
+                      // Fetch the latest payment details
+                      if (popupData?.id) {
+                        const payments = await apiRequest(`/api/collections/${popupData.id}/payments`, {
+                          method: 'GET',
+                        });
+                        const latestPayment = payments
+                          .filter((p: any) => p.status === 'approved')
+                          .sort((a: any, b: any) => new Date(b.paymentDate || b.createdAt).getTime() - new Date(a.paymentDate || a.createdAt).getTime())[0];
+                        
+                        if (latestPayment) {
+                          setSelectedPaymentForEdit(latestPayment);
+                          setShowEditPaymentDialog(true);
+                        }
+                      }
+                    } catch (error) {
+                      console.error('Failed to fetch payment for editing:', error);
+                    }
+                  }}
+                  variant="outline"
+                  className="flex-1 flex items-center gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  Edit Payment
+                </Button>
+              )}
+              <Button 
+                onClick={() => setShowLastPaymentPopup(false)}
+                className="flex-1"
+              >
+                Close
+              </Button>
+            </div>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Payment Dialog */}
+      <Dialog open={showEditPaymentDialog} onOpenChange={setShowEditPaymentDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Payment Details</DialogTitle>
+            <DialogDescription>
+              Submit an edit request for this payment. It will be auto-approved after 30 minutes if not reviewed.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedPaymentForEdit && (
+            <Form {...paymentForm}>
+              <form onSubmit={paymentForm.handleSubmit((data) => {
+                editPayment.mutate({
+                  paymentId: selectedPaymentForEdit.id,
+                  editData: {
+                    amount: parseFloat(data.amount) * 100,
+                    paymentMode: data.paymentMode,
+                    referenceNumber: data.referenceNumber,
+                    bankName: data.bankName,
+                    notes: data.notes,
+                  },
+                });
+              })} className="space-y-4">
+                <FormField
+                  control={paymentForm.control}
+                  name="amount"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Amount (₹)</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="number"
+                          placeholder="Enter amount"
+                          {...field}
+                          defaultValue={(selectedPaymentForEdit.amount / 100).toString()}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={paymentForm.control}
+                  name="paymentMode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment Mode</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={selectedPaymentForEdit.paymentMode || field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select payment mode" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="cash">Cash</SelectItem>
+                          <SelectItem value="cheque">Cheque</SelectItem>
+                          <SelectItem value="upi">UPI</SelectItem>
+                          <SelectItem value="bank_transfer">Bank Transfer</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={paymentForm.control}
+                  name="referenceNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Reference Number</FormLabel>
+                      <FormControl>
+                        <Input
+                          placeholder="Transaction/Cheque number"
+                          {...field}
+                          defaultValue={selectedPaymentForEdit.referenceNumber || ''}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex gap-2">
+                  <Button type="submit" className="flex-1">
+                    Submit Edit Request
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowEditPaymentDialog(false);
+                      setSelectedPaymentForEdit(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Auto-approval after 30 minutes if not reviewed
+                </div>
+              </form>
+            </Form>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Communication Dialog */}
+      <Dialog open={showEditCommunicationDialog} onOpenChange={setShowEditCommunicationDialog}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit Communication Details</DialogTitle>
+            <DialogDescription>
+              Submit an edit request for this communication. It will be auto-approved after 30 minutes if not reviewed.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedCommunicationForEdit && (
+            <Form {...communicationForm}>
+              <form onSubmit={communicationForm.handleSubmit((data) => {
+                editCommunication.mutate({
+                  communicationId: selectedCommunicationForEdit.id,
+                  editData: {
+                    type: data.type,
+                    direction: data.direction,
+                    subject: data.subject,
+                    content: data.content,
+                    outcome: data.outcome,
+                    promisedAmount: data.promisedAmount ? parseFloat(data.promisedAmount) * 100 : null,
+                    promisedDate: data.promisedDate,
+                    nextActionRequired: data.nextActionRequired,
+                    nextActionDate: data.nextActionDate,
+                  },
+                });
+              })} className="space-y-4">
+                <FormField
+                  control={communicationForm.control}
+                  name="content"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Content</FormLabel>
+                      <FormControl>
+                        <textarea 
+                          className="w-full min-h-[100px] p-2 border rounded text-black dark:text-white bg-white dark:bg-gray-800" 
+                          placeholder="Describe the communication..." 
+                          {...field}
+                          defaultValue={selectedCommunicationForEdit.content || ''}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={communicationForm.control}
+                  name="outcome"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Outcome</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., Promised payment, Will call back" 
+                          {...field}
+                          defaultValue={selectedCommunicationForEdit.outcome || ''}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="grid grid-cols-2 gap-4">
+                  <FormField
+                    control={communicationForm.control}
+                    name="promisedAmount"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Promised Amount (₹)</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="number" 
+                            placeholder="Amount promised" 
+                            {...field}
+                            defaultValue={selectedCommunicationForEdit.promisedAmount ? (selectedCommunicationForEdit.promisedAmount / 100).toString() : ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={communicationForm.control}
+                    name="promisedDate"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Promised Date</FormLabel>
+                        <FormControl>
+                          <Input 
+                            type="date" 
+                            {...field}
+                            defaultValue={selectedCommunicationForEdit.promisedDate || ''}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                <FormField
+                  control={communicationForm.control}
+                  name="nextActionRequired"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Next Action Required</FormLabel>
+                      <FormControl>
+                        <Input 
+                          placeholder="e.g., Follow up call" 
+                          {...field}
+                          defaultValue={selectedCommunicationForEdit.nextActionRequired || ''}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={communicationForm.control}
+                  name="nextActionDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Next Action Date</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="date" 
+                          {...field}
+                          defaultValue={selectedCommunicationForEdit.nextActionDate || ''}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className="flex gap-2">
+                  <Button type="submit" className="flex-1">
+                    Submit Edit Request
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowEditCommunicationDialog(false);
+                      setSelectedCommunicationForEdit(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Clock className="h-3 w-3" />
+                  Auto-approval after 30 minutes if not reviewed
+                </div>
+              </form>
+            </Form>
+          )}
         </DialogContent>
       </Dialog>
 

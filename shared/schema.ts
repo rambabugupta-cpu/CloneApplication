@@ -273,6 +273,84 @@ export const importBatches = pgTable("import_batches", {
   statusIdx: index("import_batches_status_idx").on(table.status),
 }));
 
+// Payment edits table - track payment edit requests with approval workflow
+export const paymentEdits = pgTable("payment_edits", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  paymentId: uuid("payment_id").notNull().references(() => payments.id),
+  
+  // Original values (for audit trail)
+  originalAmount: bigint("original_amount", { mode: "number" }).notNull(),
+  originalPaymentDate: date("original_payment_date").notNull(),
+  originalPaymentMode: text("original_payment_mode").notNull(),
+  originalReferenceNumber: text("original_reference_number"),
+  
+  // New values
+  newAmount: bigint("new_amount", { mode: "number" }).notNull(),
+  newPaymentDate: date("new_payment_date").notNull(),
+  newPaymentMode: text("new_payment_mode").notNull(),
+  newReferenceNumber: text("new_reference_number"),
+  
+  // Edit details
+  editReason: text("edit_reason").notNull(),
+  editedBy: uuid("edited_by").notNull().references(() => users.id),
+  
+  // Approval workflow
+  status: text("status").default("pending").notNull(), // pending, approved, rejected, auto_approved
+  approvedBy: uuid("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  rejectionReason: text("rejection_reason"),
+  
+  // Auto-approval after 30 minutes
+  autoApprovalAt: timestamp("auto_approval_at").notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  paymentIdx: index("payment_edits_payment_idx").on(table.paymentId),
+  statusIdx: index("payment_edits_status_idx").on(table.status),
+  editedByIdx: index("payment_edits_edited_idx").on(table.editedBy),
+}));
+
+// Communication edits table - track communication edit requests
+export const communicationEdits = pgTable("communication_edits", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  communicationId: uuid("communication_id").notNull().references(() => communications.id),
+  
+  // Original values
+  originalContent: text("original_content").notNull(),
+  originalOutcome: text("original_outcome"),
+  originalPromisedAmount: bigint("original_promised_amount", { mode: "number" }),
+  originalPromisedDate: date("original_promised_date"),
+  originalNextActionRequired: text("original_next_action_required"),
+  originalNextActionDate: date("original_next_action_date"),
+  
+  // New values
+  newContent: text("new_content").notNull(),
+  newOutcome: text("new_outcome"),
+  newPromisedAmount: bigint("new_promised_amount", { mode: "number" }),
+  newPromisedDate: date("new_promised_date"),
+  newNextActionRequired: text("new_next_action_required"),
+  newNextActionDate: date("new_next_action_date"),
+  
+  // Edit details
+  editReason: text("edit_reason").notNull(),
+  editedBy: uuid("edited_by").notNull().references(() => users.id),
+  
+  // Approval workflow
+  status: text("status").default("pending").notNull(), // pending, approved, rejected, auto_approved
+  approvedBy: uuid("approved_by").references(() => users.id),
+  approvedAt: timestamp("approved_at"),
+  rejectionReason: text("rejection_reason"),
+  
+  // Auto-approval after 30 minutes
+  autoApprovalAt: timestamp("auto_approval_at").notNull(),
+  
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+}, (table) => ({
+  communicationIdx: index("comm_edits_comm_idx").on(table.communicationId),
+  statusIdx: index("comm_edits_status_idx").on(table.status),
+  editedByIdx: index("comm_edits_edited_idx").on(table.editedBy),
+}));
+
 // Notifications table - system notifications
 export const notifications = pgTable("notifications", {
   id: uuid("id").primaryKey().defaultRandom(),

@@ -889,6 +889,175 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Edit APIs - Payment and Communication Edits with Approval Workflow
+  const { editService } = await import("./services/editService");
+  
+  // Create payment edit request
+  app.post("/api/payments/:id/edit", requireAuth, async (req, res) => {
+    try {
+      const paymentId = req.params.id;
+      const userId = req.session.userId!;
+      
+      const edit = await editService.createPaymentEdit(paymentId, req.body, userId);
+      res.json(edit);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Create communication edit request
+  app.post("/api/communications/:id/edit", requireAuth, async (req, res) => {
+    try {
+      const communicationId = req.params.id;
+      const userId = req.session.userId!;
+      
+      const edit = await editService.createCommunicationEdit(communicationId, req.body, userId);
+      res.json(edit);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Get pending payment edits
+  app.get("/api/edits/payments/pending", requireAuth, async (req, res) => {
+    try {
+      const pendingEdits = await editService.getPendingPaymentEdits();
+      res.json(pendingEdits);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Get pending communication edits
+  app.get("/api/edits/communications/pending", requireAuth, async (req, res) => {
+    try {
+      const pendingEdits = await editService.getPendingCommunicationEdits();
+      res.json(pendingEdits);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Approve payment edit
+  app.post("/api/edits/payments/:id/approve", requireAuth, async (req, res) => {
+    try {
+      const editId = req.params.id;
+      const userId = req.session.userId!;
+      const user = await storage.getUserById(userId);
+      
+      // Only admin and owner can approve
+      if (user?.role !== 'admin' && user?.role !== 'owner') {
+        return res.status(403).json({ error: "Not authorized to approve edits" });
+      }
+      
+      await editService.approvePaymentEdit(editId, userId);
+      res.json({ message: "Payment edit approved successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Approve communication edit
+  app.post("/api/edits/communications/:id/approve", requireAuth, async (req, res) => {
+    try {
+      const editId = req.params.id;
+      const userId = req.session.userId!;
+      const user = await storage.getUserById(userId);
+      
+      // Only admin and owner can approve
+      if (user?.role !== 'admin' && user?.role !== 'owner') {
+        return res.status(403).json({ error: "Not authorized to approve edits" });
+      }
+      
+      await editService.approveCommunicationEdit(editId, userId);
+      res.json({ message: "Communication edit approved successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Reject payment edit
+  app.post("/api/edits/payments/:id/reject", requireAuth, async (req, res) => {
+    try {
+      const editId = req.params.id;
+      const userId = req.session.userId!;
+      const user = await storage.getUserById(userId);
+      const { reason } = req.body;
+      
+      // Only admin and owner can reject
+      if (user?.role !== 'admin' && user?.role !== 'owner') {
+        return res.status(403).json({ error: "Not authorized to reject edits" });
+      }
+      
+      await editService.rejectPaymentEdit(editId, userId, reason);
+      res.json({ message: "Payment edit rejected" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Reject communication edit  
+  app.post("/api/edits/communications/:id/reject", requireAuth, async (req, res) => {
+    try {
+      const editId = req.params.id;
+      const userId = req.session.userId!;
+      const user = await storage.getUserById(userId);
+      const { reason } = req.body;
+      
+      // Only admin and owner can reject
+      if (user?.role !== 'admin' && user?.role !== 'owner') {
+        return res.status(403).json({ error: "Not authorized to reject edits" });
+      }
+      
+      await editService.rejectCommunicationEdit(editId, userId, reason);
+      res.json({ message: "Communication edit rejected" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Process auto-approvals (should be called periodically)
+  app.post("/api/edits/process-auto-approvals", requireAuth, async (req, res) => {
+    try {
+      await editService.processAutoApprovals();
+      res.json({ message: "Auto-approvals processed successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Get payment details by ID
+  app.get("/api/payments/:id", requireAuth, async (req, res) => {
+    try {
+      const paymentServiceModule = await import("./services/paymentService");
+      const payment = await paymentServiceModule.getPaymentById(req.params.id);
+      
+      if (!payment) {
+        return res.status(404).json({ error: "Payment not found" });
+      }
+      
+      res.json(payment);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
+  // Get communication by ID
+  app.get("/api/communications/:id", requireAuth, async (req, res) => {
+    try {
+      const { communicationService } = await import("./services/communicationService");
+      const communication = await communicationService.getCommunicationById(req.params.id);
+      
+      if (!communication) {
+        return res.status(404).json({ error: "Communication not found" });
+      }
+      
+      res.json(communication);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
