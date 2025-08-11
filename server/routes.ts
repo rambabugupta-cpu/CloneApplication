@@ -971,6 +971,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get all pending edit requests (combined)
+  app.get("/api/edits/pending", requireAuth, async (req, res) => {
+    try {
+      const pendingEdits = await editService.getPendingEditRequests();
+      res.json(pendingEdits);
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
   // Get pending payment edits
   app.get("/api/edits/payments/pending", requireAuth, async (req, res) => {
     try {

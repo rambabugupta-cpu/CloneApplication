@@ -316,6 +316,115 @@ async function seedDatabase() {
     }
     
     console.log("Created sample communications with follow-up data");
+    
+    // Create some sample edit requests for testing approvals
+    console.log("Creating sample edit requests...");
+    
+    const { paymentEdits, communicationEdits } = await import("@shared/schema");
+    
+    const paymentEditIds = await db.insert(paymentEdits).values([
+      {
+        paymentId: paymentIds[0], // First payment
+        originalAmount: 250000,
+        originalPaymentDate: new Date('2024-01-15'),
+        originalPaymentMode: 'cash',
+        originalReferenceNumber: null,
+        newAmount: 280000, // Editing amount
+        newPaymentDate: new Date('2024-01-15'),
+        newPaymentMode: 'cash',
+        newReferenceNumber: 'CASH-REF-001',
+        editReason: 'Correcting payment amount - actual amount was higher',
+        editedBy: staffUser1.id,
+        status: 'pending',
+        autoApprovalAt: new Date(Date.now() + 1000 * 60 * 30), // 30 minutes from now
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
+      },
+      {
+        paymentId: paymentIds[1], // Second payment
+        originalAmount: 450000,
+        originalPaymentDate: new Date('2024-01-20'),
+        originalPaymentMode: 'upi',
+        originalReferenceNumber: 'UPI123456',
+        newAmount: 450000,
+        newPaymentDate: new Date('2024-01-21'), // Editing date
+        newPaymentMode: 'upi',
+        newReferenceNumber: 'UPI123456',
+        editReason: 'Payment date was incorrectly recorded',
+        editedBy: adminUser.id,
+        status: 'approved',
+        approvedBy: ownerUser.id,
+        approvedAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
+        autoApprovalAt: new Date(Date.now() - 1000 * 60 * 60 * 23), 
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2), // 2 days ago
+      },
+      {
+        paymentId: paymentIds[2], // Third payment
+        originalAmount: 180000,
+        originalPaymentDate: new Date('2024-02-05'),
+        originalPaymentMode: 'cheque',
+        originalReferenceNumber: 'CHQ789',
+        newAmount: 180000,
+        newPaymentDate: new Date('2024-02-05'),
+        newPaymentMode: 'bank_transfer', // Editing payment mode
+        newReferenceNumber: 'NEFT-2024-789',
+        editReason: 'Payment mode was bank transfer, not cheque',
+        editedBy: staffUser2.id,
+        status: 'rejected',
+        approvedBy: adminUser.id,
+        approvedAt: new Date(Date.now() - 1000 * 60 * 60 * 12), // 12 hours ago
+        rejectionReason: 'Original records show cheque payment',
+        autoApprovalAt: new Date(Date.now() - 1000 * 60 * 60 * 11),
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
+      }
+    ]).returning();
+
+    // Create communication edit requests
+    const communicationEditIds = await db.insert(communicationEdits).values([
+      {
+        communicationId: communicationIds[0],
+        originalContent: 'Initial call to discuss payment',
+        originalOutcome: 'promised_to_pay',
+        originalPromisedAmount: 500000,
+        originalPromisedDate: new Date('2024-02-10'),
+        originalNextActionRequired: true,
+        originalNextActionDate: new Date('2024-02-10'),
+        newContent: 'Initial call to discuss payment - customer was busy, asked to call back', // Editing content
+        newOutcome: 'promised_to_pay',
+        newPromisedAmount: 500000,
+        newPromisedDate: new Date('2024-02-10'),
+        newNextActionRequired: true,
+        newNextActionDate: new Date('2024-02-10'),
+        editReason: 'Adding more details to the communication record',
+        editedBy: staffUser1.id,
+        status: 'pending',
+        autoApprovalAt: new Date(Date.now() + 1000 * 60 * 30), // 30 minutes from now
+        createdAt: new Date(Date.now() - 1000 * 60 * 60), // 1 hour ago
+      },
+      {
+        communicationId: communicationIds[1],
+        originalContent: 'Follow-up email sent',
+        originalOutcome: 'no_response',
+        originalPromisedAmount: null,
+        originalPromisedDate: null,
+        originalNextActionRequired: true,
+        originalNextActionDate: new Date('2024-02-08'),
+        newContent: 'Follow-up email sent',
+        newOutcome: 'partial_payment', // Editing outcome
+        newPromisedAmount: 300000,
+        newPromisedDate: new Date('2024-02-15'),
+        newNextActionRequired: true,
+        newNextActionDate: new Date('2024-02-15'),
+        editReason: 'Customer responded with partial payment promise',
+        editedBy: adminUser.id,
+        status: 'approved',
+        approvedBy: ownerUser.id,
+        approvedAt: new Date(Date.now() - 1000 * 60 * 60 * 6), // 6 hours ago
+        autoApprovalAt: new Date(Date.now() - 1000 * 60 * 60 * 5),
+        createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12), // 12 hours ago
+      }
+    ]).returning();
+
+    console.log("Created sample edit requests for testing approvals");
     console.log("Database seed completed successfully!");
     
     console.log("\n=== Login Credentials ===");

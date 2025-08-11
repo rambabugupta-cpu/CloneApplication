@@ -9,6 +9,7 @@ import { NotificationService } from "./services/notificationService";
 import { AuditService } from "./services/auditService";
 import { ExcelImportService } from "./services/excelImportService";
 import { communicationService } from "./services/communicationService";
+import { EditService } from "./services/editService";
 
 // Export service instances for backward compatibility
 export const authService = new AuthService();
@@ -18,6 +19,7 @@ export const paymentService = new PaymentService();
 export const notificationService = new NotificationService();
 export const auditService = new AuditService();
 export const excelImportService = new ExcelImportService();
+export const editService = new EditService();
 
 // Legacy storage interface - minimal implementation for compatibility
 export class DatabaseStorage {
