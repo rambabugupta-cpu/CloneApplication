@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, customers, collections, communications, payments } from "@shared/schema";
+import { users, customers, collections, communications, payments, importBatches } from "@shared/schema";
 import bcrypt from "bcrypt";
 import { sql } from "drizzle-orm";
 
@@ -159,6 +159,21 @@ async function seedDatabase() {
     
     console.log("Created customers");
     
+    // Create a sample import batch to simulate Excel upload
+    const [importBatch] = await db.insert(importBatches).values({
+      fileName: "Customer_Outstanding_Report_January_2025.xlsx",
+      fileSize: 45678,
+      totalRecords: 5,
+      successRecords: 5,
+      failedRecords: 0,
+      status: "completed",
+      importedBy: admin.id,
+      createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      completedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000),
+    }).returning();
+    
+    console.log("Created import batch to simulate Excel upload");
+    
     // Create collections with various statuses
     const today = new Date();
     const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -179,6 +194,7 @@ async function seedDatabase() {
       agingDays: 60,
       assignedTo: staff1.id,
       escalationLevel: 2,
+      importBatchId: importBatch.id, // Link to import batch
       notes: "Multiple follow-ups done, customer promised payment by month end",
     });
     
@@ -194,6 +210,7 @@ async function seedDatabase() {
       status: "partial",
       agingDays: 30,
       assignedTo: staff2.id,
+      importBatchId: importBatch.id, // Link to import batch
       promisedAmount: 10000000,
       promisedDate: thirtyDaysFromNow.toISOString().split('T')[0],
       notes: "Partial payment received, balance promised next month",
@@ -211,6 +228,7 @@ async function seedDatabase() {
       status: "pending",
       agingDays: 0,
       assignedTo: staff1.id,
+      importBatchId: importBatch.id, // Link to import batch
       notes: "New invoice, payment expected on time",
     });
     
@@ -226,6 +244,7 @@ async function seedDatabase() {
       status: "overdue",
       agingDays: 1,
       assignedTo: staff1.id,
+      importBatchId: importBatch.id, // Link to import batch
     });
     
     await db.insert(collections).values({
@@ -239,6 +258,7 @@ async function seedDatabase() {
       status: "paid",
       agingDays: 0,
       assignedTo: staff2.id,
+      importBatchId: importBatch.id, // Link to import batch
       notes: "Full payment received",
     });
     

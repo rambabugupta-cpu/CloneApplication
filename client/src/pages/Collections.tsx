@@ -1125,6 +1125,24 @@ export default function Collections() {
                   ₹{popupData?.outstandingAmount ? (popupData.outstandingAmount / 100).toLocaleString('en-IN') : '0'}
                 </span>
               </div>
+              {/* Excel Upload Details */}
+              {popupData?.importFileName && (
+                <div className="border-t pt-2 mt-2">
+                  <div className="text-sm font-semibold text-gray-600 mb-1">Excel Upload Details:</div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-sm">File Name:</span>
+                    <span className="text-sm">{popupData.importFileName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium text-sm">Upload Date:</span>
+                    <span className="text-sm">
+                      {popupData.importDate ? 
+                        format(new Date(popupData.importDate), "dd MMM yyyy, hh:mm a") : 
+                        'N/A'}
+                    </span>
+                  </div>
+                </div>
+              )}
               {popupData?.lastPaymentAmount && popupData.lastPaymentAmount > 0 && (
                 <>
                   <div className="flex justify-between">

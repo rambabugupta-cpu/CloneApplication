@@ -3,6 +3,7 @@ import {
   collections, 
   customers, 
   payments,
+  importBatches,
   type Collection, 
   type InsertCollection 
 } from "@shared/schema";
@@ -56,9 +57,37 @@ export class CollectionService {
     return collection;
   }
 
-  async getCollectionsByCustomer(customerId: string): Promise<Collection[]> {
-    return await db.select()
+  async getCollectionsByCustomer(customerId: string): Promise<any[]> {
+    return await db.select({
+      id: collections.id,
+      customerId: collections.customerId,
+      invoiceNumber: collections.invoiceNumber,
+      invoiceDate: collections.invoiceDate,
+      dueDate: collections.dueDate,
+      originalAmount: collections.originalAmount,
+      outstandingAmount: collections.outstandingAmount,
+      paidAmount: collections.paidAmount,
+      status: collections.status,
+      agingDays: collections.agingDays,
+      promisedAmount: collections.promisedAmount,
+      promisedDate: collections.promisedDate,
+      lastFollowupDate: collections.lastFollowupDate,
+      nextFollowupDate: collections.nextFollowupDate,
+      assignedTo: collections.assignedTo,
+      escalationLevel: collections.escalationLevel,
+      disputeRaisedAt: collections.disputeRaisedAt,
+      disputeReason: collections.disputeReason,
+      notes: collections.notes,
+      createdAt: collections.createdAt,
+      updatedAt: collections.updatedAt,
+      importBatchId: collections.importBatchId,
+      // Import batch details
+      importFileName: importBatches.fileName,
+      importDate: importBatches.createdAt,
+      importedBy: importBatches.importedBy,
+    })
       .from(collections)
+      .leftJoin(importBatches, eq(collections.importBatchId, importBatches.id))
       .where(eq(collections.customerId, customerId))
       .orderBy(desc(collections.dueDate));
   }
@@ -84,9 +113,37 @@ export class CollectionService {
       .orderBy(asc(collections.dueDate));
   }
 
-  async getCollectionsForStaff(staffId: string): Promise<Collection[]> {
-    return await db.select()
+  async getCollectionsForStaff(staffId: string): Promise<any[]> {
+    return await db.select({
+      id: collections.id,
+      customerId: collections.customerId,
+      invoiceNumber: collections.invoiceNumber,
+      invoiceDate: collections.invoiceDate,
+      dueDate: collections.dueDate,
+      originalAmount: collections.originalAmount,
+      outstandingAmount: collections.outstandingAmount,
+      paidAmount: collections.paidAmount,
+      status: collections.status,
+      agingDays: collections.agingDays,
+      promisedAmount: collections.promisedAmount,
+      promisedDate: collections.promisedDate,
+      lastFollowupDate: collections.lastFollowupDate,
+      nextFollowupDate: collections.nextFollowupDate,
+      assignedTo: collections.assignedTo,
+      escalationLevel: collections.escalationLevel,
+      disputeRaisedAt: collections.disputeRaisedAt,
+      disputeReason: collections.disputeReason,
+      notes: collections.notes,
+      createdAt: collections.createdAt,
+      updatedAt: collections.updatedAt,
+      importBatchId: collections.importBatchId,
+      // Import batch details
+      importFileName: importBatches.fileName,
+      importDate: importBatches.createdAt,
+      importedBy: importBatches.importedBy,
+    })
       .from(collections)
+      .leftJoin(importBatches, eq(collections.importBatchId, importBatches.id))
       .where(eq(collections.assignedTo, staffId))
       .orderBy(desc(collections.dueDate));
   }
@@ -146,6 +203,7 @@ export class CollectionService {
       notes: collections.notes,
       createdAt: collections.createdAt,
       updatedAt: collections.updatedAt,
+      importBatchId: collections.importBatchId,
       // Customer details
       customerName: customers.primaryContactName,
       customerCompany: customers.companyName,
@@ -160,9 +218,14 @@ export class CollectionService {
         NULLIF(${customers.state}, ''), 
         NULLIF(${customers.pincode}, '')
       )`.as('customerAddress'),
+      // Import batch details
+      importFileName: importBatches.fileName,
+      importDate: importBatches.createdAt,
+      importedBy: importBatches.importedBy,
     })
     .from(collections)
-    .leftJoin(customers, eq(collections.customerId, customers.id));
+    .leftJoin(customers, eq(collections.customerId, customers.id))
+    .leftJoin(importBatches, eq(collections.importBatchId, importBatches.id));
     
     if (conditions.length > 0) {
       query = query.where(and(...conditions)) as any;
