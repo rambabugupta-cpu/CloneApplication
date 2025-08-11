@@ -294,74 +294,72 @@ export default function Collections() {
 
       {/* Collections Table */}
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        {/* Import Date Header */}
+        {filteredCollections && filteredCollections.length > 0 && (
+          <div className="px-6 py-3 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              Last Import: {format(new Date(filteredCollections[0]?.createdAt || Date.now()), "dd MMM yyyy, HH:mm")}
+            </p>
+          </div>
+        )}
+        
         <Table>
           <TableHeader>
-            <TableRow>
-              <TableHead>Import Date</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Due Date</TableHead>
-              <TableHead>Outstanding</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Aging</TableHead>
-              <TableHead>Next Followup</TableHead>
-              <TableHead>Actions</TableHead>
+            <TableRow className="bg-gray-50 dark:bg-gray-900">
+              <TableHead className="font-semibold">Customer</TableHead>
+              <TableHead className="font-semibold">Outstanding</TableHead>
+              <TableHead className="font-semibold">Status</TableHead>
+              <TableHead className="font-semibold">Next Followup</TableHead>
+              <TableHead className="font-semibold text-center">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={5} className="text-center py-8">
                   Loading collections...
                 </TableCell>
               </TableRow>
             ) : filteredCollections?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8">
+                <TableCell colSpan={5} className="text-center py-8">
                   No collections found
                 </TableCell>
               </TableRow>
             ) : (
               filteredCollections?.map((collection: any) => (
-                <TableRow key={collection.id}>
-                  <TableCell className="font-medium">
-                    <div className="text-sm">
-                      <p>{format(new Date(collection.createdAt || collection.importedAt || Date.now()), "dd MMM yyyy")}</p>
-                      <p className="text-gray-500">{format(new Date(collection.createdAt || collection.importedAt || Date.now()), "HH:mm:ss")}</p>
-                    </div>
-                  </TableCell>
+                <TableRow key={collection.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                   <TableCell>
-                    <div>
-                      <p className="font-medium">{collection.customerName || 'N/A'}</p>
+                    <div className="space-y-1">
+                      <p className="font-semibold text-base">{collection.customerName || 'N/A'}</p>
                       {collection.customerCompany && (
-                        <p className="text-sm text-gray-500">{collection.customerCompany}</p>
+                        <p className="text-sm text-gray-600 dark:text-gray-400">{collection.customerCompany}</p>
                       )}
-                      <p className="text-sm text-gray-500">{collection.customerPhone || 'No phone'}</p>
+                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                        <Phone className="h-3 w-3" />
+                        <span>{collection.customerPhone || 'No phone'}</span>
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
-                    {format(new Date(collection.dueDate), "dd MMM yyyy")}
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <p className="font-medium">{formatCurrency(collection.outstandingAmount)}</p>
+                    <div className="space-y-1">
+                      <p className="font-bold text-lg">{formatCurrency(collection.outstandingAmount)}</p>
                       {collection.paidAmount > 0 && (
-                        <p className="text-sm text-green-600">
+                        <p className="text-sm text-green-600 font-medium">
                           Paid: {formatCurrency(collection.paidAmount)}
                         </p>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    {getStatusBadge(collection.status)}
-                  </TableCell>
-                  <TableCell>
-                    {collection.agingDays > 0 ? (
-                      <span className={`text-sm ${collection.agingDays > 60 ? 'text-red-600' : collection.agingDays > 30 ? 'text-orange-600' : 'text-yellow-600'}`}>
-                        {collection.agingDays} days
-                      </span>
-                    ) : (
-                      <span className="text-sm text-green-600">Current</span>
-                    )}
+                    <div className="space-y-1">
+                      {getStatusBadge(collection.status)}
+                      {collection.agingDays > 0 && (
+                        <p className={`text-xs ${collection.agingDays > 60 ? 'text-red-600' : collection.agingDays > 30 ? 'text-orange-600' : 'text-yellow-600'}`}>
+                          {collection.agingDays} days overdue
+                        </p>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     {collection.latestCommunication ? (
@@ -402,24 +400,14 @@ export default function Collections() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <div className="flex gap-2 flex-wrap">
+                    <div className="flex gap-1 flex-wrap justify-center">
                       {(user?.role === 'staff' || user?.role === 'admin' || user?.role === 'owner') && (
                         <>
                           <Button
                             size="sm"
-                            variant="outline"
-                            title="Record Payment"
-                            onClick={() => {
-                              setSelectedCollection(collection);
-                              setShowPaymentDialog(true);
-                            }}
-                          >
-                            <IndianRupee className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
+                            variant="ghost"
                             title="Log Communication"
+                            className="hover:bg-gray-100 dark:hover:bg-gray-700"
                             onClick={() => {
                               setSelectedCollection(collection);
                               setShowCommunicationDialog(true);
@@ -429,17 +417,30 @@ export default function Collections() {
                           </Button>
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="ghost"
                             title="Call Customer"
+                            className="hover:bg-gray-100 dark:hover:bg-gray-700"
                             onClick={() => window.location.href = `tel:${collection.customerPhone}`}
                           >
                             <Phone className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="ghost"
+                            title="Send SMS"
+                            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                            onClick={() => {
+                              const message = encodeURIComponent(`Reminder: Outstanding amount ${formatCurrency(collection.outstandingAmount)} is due.`);
+                              window.location.href = `sms:${collection.customerPhone}?body=${message}`;
+                            }}
+                          >
+                            <MessageSquare className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
                             title="Send WhatsApp"
-                            className="text-green-600 hover:text-green-700"
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
                             onClick={() => {
                               const phone = collection.customerPhone?.replace(/[^0-9]/g, '');
                               const message = encodeURIComponent(`Hello ${collection.customerName}, this is regarding your outstanding amount of ${formatCurrency(collection.outstandingAmount)}.`);
@@ -450,21 +451,21 @@ export default function Collections() {
                           </Button>
                           <Button
                             size="sm"
-                            variant="outline"
-                            title="Send SMS"
-                            className="text-blue-600 hover:text-blue-700"
+                            variant="ghost"
+                            title="Record Payment"
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50 dark:hover:bg-green-900/20"
                             onClick={() => {
-                              const message = encodeURIComponent(`Reminder: Outstanding amount ${formatCurrency(collection.outstandingAmount)} is due.`);
-                              window.location.href = `sms:${collection.customerPhone}?body=${message}`;
+                              setSelectedCollection(collection);
+                              setShowPaymentDialog(true);
                             }}
                           >
-                            <MessageSquare className="h-4 w-4" />
+                            <IndianRupee className="h-4 w-4" />
                           </Button>
                           {!collection.disputeRaisedAt && (
                             <Button
                               size="sm"
-                              variant="outline"
-                              className="text-orange-600 hover:text-orange-700"
+                              variant="ghost"
+                              className="text-orange-600 hover:text-orange-700 hover:bg-orange-50 dark:hover:bg-orange-900/20"
                               title="Raise Dispute"
                               onClick={() => handleRaiseDispute(collection)}
                             >
