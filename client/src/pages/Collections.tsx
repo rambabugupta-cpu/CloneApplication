@@ -103,12 +103,27 @@ export default function Collections() {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [showNextFollowupPopup, setShowNextFollowupPopup] = useState(false);
   const [showLastPaymentPopup, setShowLastPaymentPopup] = useState(false);
+  const [showPaymentHistoryDialog, setShowPaymentHistoryDialog] = useState(false);
   const [popupData, setPopupData] = useState<any>(null);
+  const [paymentHistory, setPaymentHistory] = useState<any[]>([]);
 
   const { data: collections, isLoading } = useQuery({
     queryKey: ["/api/collections", statusFilter, searchTerm],
     enabled: !!user,
   });
+
+  // Fetch payment history for a collection
+  const fetchPaymentHistory = async (collectionId: string) => {
+    try {
+      const response = await apiRequest(`/api/collections/${collectionId}/payments`, {
+        method: 'GET',
+      });
+      setPaymentHistory(response);
+    } catch (error) {
+      console.error('Failed to fetch payment history:', error);
+      setPaymentHistory([]);
+    }
+  };
 
   const paymentForm = useForm({
     resolver: zodResolver(paymentSchema),
@@ -1106,84 +1121,155 @@ export default function Collections() {
 
       {/* Last Payment Popup */}
       <Dialog open={showLastPaymentPopup} onOpenChange={setShowLastPaymentPopup}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Last Payment Details</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-3">
+              {/* Customer Name */}
+              <div className="pb-2 border-b">
+                <span className="text-sm text-gray-600">Customer Name</span>
+                <p className="font-semibold text-lg">{popupData?.customerName || 'N/A'}</p>
+              </div>
+
+              {/* Outstanding Amount at Excel Upload Time */}
+              <div>
+                <span className="text-sm text-gray-600">Outstanding Amount at the time of uploading excel</span>
+                <p className="font-bold text-lg text-red-600">
+                  ₹{popupData?.originalAmount ? (popupData.originalAmount / 100).toLocaleString('en-IN') : 
+                    popupData?.outstandingAmount ? ((popupData.outstandingAmount + (popupData.paidAmount || 0)) / 100).toLocaleString('en-IN') : '0'}
+                </p>
+              </div>
+
+              {/* Excel Upload Date and Time */}
+              <div>
+                <span className="text-sm text-gray-600">Excel uploaded Date and time</span>
+                <p className="font-medium">
+                  {popupData?.importDate ? 
+                    format(new Date(popupData.importDate), "dd MMM yyyy, hh:mm a") : 
+                    'N/A'}
+                </p>
+                {popupData?.importFileName && (
+                  <p className="text-xs text-gray-500 mt-1">File: {popupData.importFileName}</p>
+                )}
+              </div>
+
+              {/* Total Last Payment Amount with Preview Button */}
+              <div>
+                <span className="text-sm text-gray-600">Total Last Payment Amount</span>
+                <div className="flex items-center justify-between">
+                  <p className="font-bold text-lg text-green-600">
+                    ₹{popupData?.paidAmount ? (popupData.paidAmount / 100).toLocaleString('en-IN') : '0'}
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (popupData?.id) {
+                        fetchPaymentHistory(popupData.id);
+                        setShowPaymentHistoryDialog(true);
+                      }
+                    }}
+                    className="flex items-center gap-1"
+                  >
+                    <Eye className="h-3 w-3" />
+                    Preview
+                  </Button>
+                </div>
+                {popupData?.lastPaymentDate && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Last payment on {format(new Date(popupData.lastPaymentDate), "dd MMM yyyy")}
+                  </p>
+                )}
+              </div>
+
+              {/* Balance Amount */}
+              <div className="pt-2 border-t">
+                <span className="text-sm text-gray-600">Balance Amount</span>
+                <p className="font-bold text-lg text-orange-600">
+                  ₹{popupData?.outstandingAmount ? (popupData.outstandingAmount / 100).toLocaleString('en-IN') : '0'}
+                </p>
+              </div>
+            </div>
+
+            <Button 
+              onClick={() => setShowLastPaymentPopup(false)}
+              className="w-full"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Payment History Dialog */}
+      <Dialog open={showPaymentHistoryDialog} onOpenChange={setShowPaymentHistoryDialog}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Payment History</DialogTitle>
             <DialogDescription>
-              {popupData?.customerName}
+              {popupData?.customerName} - All payments for Invoice #{popupData?.invoiceNumber}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="font-medium">Invoice Number:</span>
-                <span>{popupData?.invoiceNumber}</span>
+            {paymentHistory.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-2 text-sm font-medium">Date</th>
+                      <th className="text-right p-2 text-sm font-medium">Amount</th>
+                      <th className="text-left p-2 text-sm font-medium">Mode</th>
+                      <th className="text-left p-2 text-sm font-medium">Reference</th>
+                      <th className="text-left p-2 text-sm font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {paymentHistory.map((payment: any, index: number) => (
+                      <tr key={payment.id || index} className="border-b hover:bg-gray-50 dark:hover:bg-gray-800">
+                        <td className="p-2 text-sm">
+                          {format(new Date(payment.paymentDate || payment.createdAt), "dd MMM yyyy")}
+                        </td>
+                        <td className="p-2 text-sm text-right font-medium text-green-600">
+                          ₹{(payment.amount / 100).toLocaleString('en-IN')}
+                        </td>
+                        <td className="p-2 text-sm capitalize">{payment.paymentMode || 'N/A'}</td>
+                        <td className="p-2 text-sm">{payment.referenceNumber || '-'}</td>
+                        <td className="p-2">
+                          <Badge
+                            variant={
+                              payment.status === 'approved' ? 'default' :
+                              payment.status === 'pending_approval' ? 'secondary' :
+                              'destructive'
+                            }
+                            className="text-xs"
+                          >
+                            {payment.status === 'pending_approval' ? 'Pending' : payment.status}
+                          </Badge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 font-semibold">
+                      <td className="p-2 text-sm">Total</td>
+                      <td className="p-2 text-sm text-right text-green-600">
+                        ₹{(paymentHistory
+                          .filter((p: any) => p.status === 'approved')
+                          .reduce((sum: number, p: any) => sum + (p.amount || 0), 0) / 100)
+                          .toLocaleString('en-IN')}
+                      </td>
+                      <td colSpan={3}></td>
+                    </tr>
+                  </tfoot>
+                </table>
               </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Outstanding Amount:</span>
-                <span className="font-bold text-red-600">
-                  ₹{popupData?.outstandingAmount ? (popupData.outstandingAmount / 100).toLocaleString('en-IN') : '0'}
-                </span>
-              </div>
-              {/* Excel Upload Details */}
-              {popupData?.importFileName && (
-                <div className="border-t pt-2 mt-2">
-                  <div className="text-sm font-semibold text-gray-600 mb-1">Excel Upload Details:</div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-sm">File Name:</span>
-                    <span className="text-sm">{popupData.importFileName}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="font-medium text-sm">Upload Date:</span>
-                    <span className="text-sm">
-                      {popupData.importDate ? 
-                        format(new Date(popupData.importDate), "dd MMM yyyy, hh:mm a") : 
-                        'N/A'}
-                    </span>
-                  </div>
-                </div>
-              )}
-              {popupData?.lastPaymentAmount && popupData.lastPaymentAmount > 0 && (
-                <>
-                  <div className="flex justify-between">
-                    <span className="font-medium">Last Payment Amount:</span>
-                    <span className="font-bold text-green-600">
-                      ₹{(popupData.lastPaymentAmount / 100).toLocaleString('en-IN')}
-                    </span>
-                  </div>
-                  {popupData.lastPaymentDate && (
-                    <div className="flex justify-between">
-                      <span className="font-medium">Last Payment Date:</span>
-                      <span>{format(new Date(popupData.lastPaymentDate), "dd MMM yyyy")}</span>
-                    </div>
-                  )}
-                  {popupData.lastPaymentMode && (
-                    <div className="flex justify-between">
-                      <span className="font-medium">Payment Mode:</span>
-                      <span className="capitalize">{popupData.lastPaymentMode}</span>
-                    </div>
-                  )}
-                  {popupData.paidAmount && (
-                    <div className="flex justify-between">
-                      <span className="font-medium">Total Paid:</span>
-                      <span className="text-blue-600">
-                        ₹{(popupData.paidAmount / 100).toLocaleString('en-IN')}
-                      </span>
-                    </div>
-                  )}
-                </>
-              )}
-              <div className="flex justify-between">
-                <span className="font-medium">Invoice Date:</span>
-                <span>{popupData?.invoiceDate ? format(new Date(popupData.invoiceDate), "dd MMM yyyy") : 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="font-medium">Due Date:</span>
-                <span>{popupData?.dueDate ? format(new Date(popupData.dueDate), "dd MMM yyyy") : 'N/A'}</span>
-              </div>
-            </div>
+            ) : (
+              <p className="text-center text-gray-500 py-8">No payment history available</p>
+            )}
             <Button 
-              onClick={() => setShowLastPaymentPopup(false)}
+              onClick={() => setShowPaymentHistoryDialog(false)}
               className="w-full"
             >
               Close
