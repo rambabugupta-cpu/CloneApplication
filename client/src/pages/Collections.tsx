@@ -59,7 +59,8 @@ import {
   Send,
   ChevronUp,
   ChevronDown,
-  ArrowUpDown
+  ArrowUpDown,
+  Eye
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { format } from "date-fns";
@@ -100,6 +101,9 @@ export default function Collections() {
   const [disputeReason, setDisputeReason] = useState("");
   const [sortBy, setSortBy] = useState<'customer' | 'outstanding' | 'followup' | 'lastpayment'>('customer');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [showNextFollowupPopup, setShowNextFollowupPopup] = useState(false);
+  const [showLastPaymentPopup, setShowLastPaymentPopup] = useState(false);
+  const [popupData, setPopupData] = useState<any>(null);
 
   const { data: collections, isLoading } = useQuery({
     queryKey: ["/api/collections", statusFilter, searchTerm],
@@ -525,13 +529,27 @@ export default function Collections() {
                   </TableCell>
                   <TableCell className="py-2 text-center px-2 whitespace-nowrap">
                     {collection.lastPaymentAmount && collection.lastPaymentAmount > 0 ? (
-                      <div className="text-sm">
-                        <span className="font-medium text-green-600">{formatCurrency(collection.lastPaymentAmount)}</span>
-                        {collection.lastPaymentDate && (
-                          <p className="text-gray-500 text-xs">
-                            {format(new Date(collection.lastPaymentDate), "dd/MM/yyyy")}
-                          </p>
-                        )}
+                      <div className="text-sm flex items-center justify-center gap-1">
+                        <div>
+                          <span className="font-medium text-green-600">{formatCurrency(collection.lastPaymentAmount)}</span>
+                          {collection.lastPaymentDate && (
+                            <p className="text-gray-500 text-xs">
+                              {format(new Date(collection.lastPaymentDate), "dd/MM/yyyy")}
+                            </p>
+                          )}
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-5 w-5 p-0"
+                          title="View Details"
+                          onClick={() => {
+                            setPopupData(collection);
+                            setShowLastPaymentPopup(true);
+                          }}
+                        >
+                          <Eye className="h-3 w-3" />
+                        </Button>
                       </div>
                     ) : (
                       <span className="text-gray-500 text-sm">-</span>
@@ -541,18 +559,32 @@ export default function Collections() {
                     {collection.latestCommunication ? (
                       <div className="text-sm">
                         {collection.latestCommunication.nextActionDate || collection.latestCommunication.promisedDate ? (
-                          <>
-                            <div className="font-medium">
-                              {collection.latestCommunication.nextActionDate 
-                                ? format(new Date(collection.latestCommunication.nextActionDate), "dd/MM/yyyy")
-                                : format(new Date(collection.latestCommunication.promisedDate), "dd/MM/yyyy")}
-                            </div>
-                            {collection.latestCommunication.promisedAmount && (
-                              <div className="text-green-600 dark:text-green-400 text-xs">
-                                ₹{(collection.latestCommunication.promisedAmount / 100).toLocaleString('en-IN')}
+                          <div className="flex items-center justify-center gap-1">
+                            <div>
+                              <div className="font-medium">
+                                {collection.latestCommunication.nextActionDate 
+                                  ? format(new Date(collection.latestCommunication.nextActionDate), "dd/MM/yyyy")
+                                  : format(new Date(collection.latestCommunication.promisedDate), "dd/MM/yyyy")}
                               </div>
-                            )}
-                          </>
+                              {collection.latestCommunication.promisedAmount && (
+                                <div className="text-green-600 dark:text-green-400 text-xs">
+                                  ₹{(collection.latestCommunication.promisedAmount / 100).toLocaleString('en-IN')}
+                                </div>
+                              )}
+                            </div>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-5 w-5 p-0"
+                              title="View Details"
+                              onClick={() => {
+                                setPopupData(collection);
+                                setShowNextFollowupPopup(true);
+                              }}
+                            >
+                              <Eye className="h-3 w-3" />
+                            </Button>
+                          </div>
                         ) : (
                           <span className="text-gray-500">-</span>
                         )}
@@ -978,6 +1010,166 @@ export default function Collections() {
                 Cancel
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Next Followup Popup */}
+      <Dialog open={showNextFollowupPopup} onOpenChange={setShowNextFollowupPopup}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Next Followup Details</DialogTitle>
+            <DialogDescription>
+              {popupData?.customerName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {popupData?.latestCommunication ? (
+              <>
+                <div className="space-y-2">
+                  <div className="flex justify-between">
+                    <span className="font-medium">Type:</span>
+                    <span className="capitalize">{popupData.latestCommunication.type}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Direction:</span>
+                    <span className="capitalize">{popupData.latestCommunication.direction}</span>
+                  </div>
+                  {popupData.latestCommunication.subject && (
+                    <div>
+                      <span className="font-medium">Subject:</span>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {popupData.latestCommunication.subject}
+                      </p>
+                    </div>
+                  )}
+                  <div>
+                    <span className="font-medium">Content:</span>
+                    <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                      {popupData.latestCommunication.content}
+                    </p>
+                  </div>
+                  {popupData.latestCommunication.outcome && (
+                    <div>
+                      <span className="font-medium">Outcome:</span>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {popupData.latestCommunication.outcome}
+                      </p>
+                    </div>
+                  )}
+                  {popupData.latestCommunication.promisedDate && (
+                    <div className="flex justify-between">
+                      <span className="font-medium">Promised Date:</span>
+                      <span>{format(new Date(popupData.latestCommunication.promisedDate), "dd MMM yyyy")}</span>
+                    </div>
+                  )}
+                  {popupData.latestCommunication.promisedAmount && (
+                    <div className="flex justify-between">
+                      <span className="font-medium">Promised Amount:</span>
+                      <span className="text-green-600">
+                        ₹{(popupData.latestCommunication.promisedAmount / 100).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  )}
+                  {popupData.latestCommunication.nextActionRequired && (
+                    <div>
+                      <span className="font-medium">Next Action Required:</span>
+                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
+                        {popupData.latestCommunication.nextActionRequired}
+                      </p>
+                    </div>
+                  )}
+                  {popupData.latestCommunication.nextActionDate && (
+                    <div className="flex justify-between">
+                      <span className="font-medium">Next Action Date:</span>
+                      <span>{format(new Date(popupData.latestCommunication.nextActionDate), "dd MMM yyyy")}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="font-medium">Communication Date:</span>
+                    <span>{format(new Date(popupData.latestCommunication.createdAt), "dd MMM yyyy, hh:mm a")}</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <p className="text-gray-500">No communication details available</p>
+            )}
+            <Button 
+              onClick={() => setShowNextFollowupPopup(false)}
+              className="w-full"
+            >
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Last Payment Popup */}
+      <Dialog open={showLastPaymentPopup} onOpenChange={setShowLastPaymentPopup}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Last Payment Details</DialogTitle>
+            <DialogDescription>
+              {popupData?.customerName}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="font-medium">Invoice Number:</span>
+                <span>{popupData?.invoiceNumber}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Outstanding Amount:</span>
+                <span className="font-bold text-red-600">
+                  ₹{popupData?.outstandingAmount ? (popupData.outstandingAmount / 100).toLocaleString('en-IN') : '0'}
+                </span>
+              </div>
+              {popupData?.lastPaymentAmount && popupData.lastPaymentAmount > 0 && (
+                <>
+                  <div className="flex justify-between">
+                    <span className="font-medium">Last Payment Amount:</span>
+                    <span className="font-bold text-green-600">
+                      ₹{(popupData.lastPaymentAmount / 100).toLocaleString('en-IN')}
+                    </span>
+                  </div>
+                  {popupData.lastPaymentDate && (
+                    <div className="flex justify-between">
+                      <span className="font-medium">Last Payment Date:</span>
+                      <span>{format(new Date(popupData.lastPaymentDate), "dd MMM yyyy")}</span>
+                    </div>
+                  )}
+                  {popupData.lastPaymentMode && (
+                    <div className="flex justify-between">
+                      <span className="font-medium">Payment Mode:</span>
+                      <span className="capitalize">{popupData.lastPaymentMode}</span>
+                    </div>
+                  )}
+                  {popupData.paidAmount && (
+                    <div className="flex justify-between">
+                      <span className="font-medium">Total Paid:</span>
+                      <span className="text-blue-600">
+                        ₹{(popupData.paidAmount / 100).toLocaleString('en-IN')}
+                      </span>
+                    </div>
+                  )}
+                </>
+              )}
+              <div className="flex justify-between">
+                <span className="font-medium">Invoice Date:</span>
+                <span>{popupData?.invoiceDate ? format(new Date(popupData.invoiceDate), "dd MMM yyyy") : 'N/A'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="font-medium">Due Date:</span>
+                <span>{popupData?.dueDate ? format(new Date(popupData.dueDate), "dd MMM yyyy") : 'N/A'}</span>
+              </div>
+            </div>
+            <Button 
+              onClick={() => setShowLastPaymentPopup(false)}
+              className="w-full"
+            >
+              Close
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

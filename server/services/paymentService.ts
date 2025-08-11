@@ -28,26 +28,29 @@ export class PaymentService {
       }).returning();
 
       // Get collection details
-      const collection = await this.collectionService.getCollectionById(data.collectionId);
+      const [collection] = await tx.select().from(collections).where(eq(collections.id, data.collectionId));
       if (!collection) {
         throw new Error("Collection not found");
       }
 
-      // Create notification for admins/owners
-      await this.notificationService.createPaymentApprovalNotification(
-        newPayment.id,
-        collection.id,
-        data.amount
-      );
+      // Create notification for admins/owners using transaction context
+      const [notification] = await tx.insert(notifications).values({
+        userId: data.recordedBy, // This will be sent to admins, but we track who triggered it
+        type: "payment_received",
+        title: "Payment Approval Required",
+        message: `Payment of ₹${(data.amount / 100).toFixed(2)} requires approval`,
+        collectionId: collection.id,
+        paymentId: newPayment.id,
+      }).returning();
 
-      // Create audit log
-      await this.auditService.logAction({
+      // Create audit log using transaction context
+      const [auditLog] = await tx.insert(auditLogs).values({
         userId: data.recordedBy,
         action: "payment_recorded",
         entityType: "payment",
         entityId: newPayment.id,
         newValue: newPayment,
-      });
+      }).returning();
 
       return newPayment;
     });
