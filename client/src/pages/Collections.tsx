@@ -98,7 +98,7 @@ export default function Collections() {
   const [showCommunicationDialog, setShowCommunicationDialog] = useState(false);
   const [showDisputeDialog, setShowDisputeDialog] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
-  const [sortBy, setSortBy] = useState<'customer' | 'outstanding' | 'followup'>('customer');
+  const [sortBy, setSortBy] = useState<'customer' | 'outstanding' | 'followup' | 'lastpayment'>('customer');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const { data: collections, isLoading } = useQuery({
@@ -261,11 +261,13 @@ export default function Collections() {
     
     return matchesSearch && matchesStatus;
   })?.sort((a: any, b: any) => {
-    // Always sort by customer name first (A-Z)
+    // Sort by customer name (A-Z or Z-A)
     if (sortBy === 'customer') {
       const nameA = (a.customerName || '').toLowerCase();
       const nameB = (b.customerName || '').toLowerCase();
-      return nameA.localeCompare(nameB);
+      return sortOrder === 'asc' 
+        ? nameA.localeCompare(nameB)
+        : nameB.localeCompare(nameA);
     }
     
     // Sort by outstanding amount (highest to lowest)
@@ -273,6 +275,24 @@ export default function Collections() {
       return sortOrder === 'desc' 
         ? b.outstandingAmount - a.outstandingAmount 
         : a.outstandingAmount - b.outstandingAmount;
+    }
+    
+    // Sort by last payment amount
+    if (sortBy === 'lastpayment') {
+      const amountA = a.lastPaymentAmount || 0;
+      const amountB = b.lastPaymentAmount || 0;
+      
+      // If both have no payments, maintain order
+      if (amountA === 0 && amountB === 0) return 0;
+      
+      // Put zero payments at the end
+      if (amountA === 0) return 1;
+      if (amountB === 0) return -1;
+      
+      // Sort by amount
+      return sortOrder === 'desc'
+        ? amountB - amountA
+        : amountA - amountB;
     }
     
     // Sort by next followup date (nearest to today first, past dates on top)
@@ -370,11 +390,25 @@ export default function Collections() {
           <TableHeader>
             <TableRow className="bg-gray-50 dark:bg-gray-900">
               <TableHead className="font-semibold text-center w-auto whitespace-nowrap px-2">S.No</TableHead>
-              <TableHead className="font-semibold text-center min-w-[200px] px-2">
+              <TableHead 
+                className="font-semibold text-center min-w-[200px] px-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => {
+                  if (sortBy === 'customer') {
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortBy('customer');
+                    setSortOrder('asc');
+                  }
+                }}
+              >
                 <div className="flex items-center justify-center gap-1">
                   <span>Customer</span>
-                  {sortBy === 'customer' && (
-                    <ChevronUp className="h-3 w-3 text-blue-600" />
+                  {sortBy === 'customer' ? (
+                    sortOrder === 'asc' ? 
+                      <ChevronUp className="h-3 w-3 text-blue-600" /> : 
+                      <ChevronDown className="h-3 w-3 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3 text-gray-400" />
                   )}
                 </div>
               </TableHead>
@@ -400,7 +434,28 @@ export default function Collections() {
                   )}
                 </div>
               </TableHead>
-              <TableHead className="font-semibold text-center w-auto whitespace-nowrap px-2">Last Payment</TableHead>
+              <TableHead 
+                className="font-semibold text-center w-auto whitespace-nowrap px-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => {
+                  if (sortBy === 'lastpayment') {
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortBy('lastpayment');
+                    setSortOrder('desc');
+                  }
+                }}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  <span>Last Payment</span>
+                  {sortBy === 'lastpayment' ? (
+                    sortOrder === 'desc' ? 
+                      <ChevronDown className="h-3 w-3 text-blue-600" /> : 
+                      <ChevronUp className="h-3 w-3 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3 text-gray-400" />
+                  )}
+                </div>
+              </TableHead>
               <TableHead 
                 className="font-semibold text-center w-auto whitespace-nowrap px-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
                 onClick={() => {
