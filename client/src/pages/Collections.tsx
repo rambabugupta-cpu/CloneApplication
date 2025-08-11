@@ -72,6 +72,7 @@ import { cn } from "@/lib/utils";
 const paymentSchema = z.object({
   amount: z.string().min(1, "Amount is required"),
   paymentMode: z.enum(["cash", "cheque", "upi", "bank_transfer", "other"]),
+  paymentDate: z.string().optional(),
   referenceNumber: z.string().optional(),
   bankName: z.string().optional(),
   notes: z.string().optional(),
@@ -85,8 +86,6 @@ const communicationSchema = z.object({
   outcome: z.string().optional(),
   promisedAmount: z.string().optional(),
   promisedDate: z.string().optional(),
-  nextActionRequired: z.string().optional(),
-  nextActionDate: z.string().optional(),
 });
 
 export default function Collections() {
@@ -134,6 +133,7 @@ export default function Collections() {
     defaultValues: {
       amount: "",
       paymentMode: "cash" as const,
+      paymentDate: "",
       referenceNumber: "",
       bankName: "",
       notes: "",
@@ -150,8 +150,6 @@ export default function Collections() {
       outcome: "",
       promisedAmount: "",
       promisedDate: "",
-      nextActionRequired: "",
-      nextActionDate: "",
     },
   });
 
@@ -250,7 +248,7 @@ export default function Collections() {
     onSuccess: () => {
       toast({
         title: "Edit Request Submitted",
-        description: "Your edit request has been submitted. It will be auto-approved after 30 minutes if not reviewed.",
+        description: "Your edit request has been submitted for approval.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
       setShowEditPaymentDialog(false);
@@ -276,7 +274,7 @@ export default function Collections() {
     onSuccess: () => {
       toast({
         title: "Edit Request Submitted",
-        description: "Your edit request has been submitted. It will be auto-approved after 30 minutes if not reviewed.",
+        description: "Your edit request has been submitted for approval.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
       setShowEditCommunicationDialog(false);
@@ -1311,7 +1309,7 @@ export default function Collections() {
           <DialogHeader>
             <DialogTitle>Edit Payment Details</DialogTitle>
             <DialogDescription>
-              Submit an edit request for this payment. It will be auto-approved after 30 minutes if not reviewed.
+              Submit an edit request for this payment.
             </DialogDescription>
           </DialogHeader>
           {selectedPaymentForEdit && (
@@ -1322,6 +1320,7 @@ export default function Collections() {
                   editData: {
                     amount: parseFloat(data.amount) * 100,
                     paymentMode: data.paymentMode,
+                    paymentDate: data.paymentDate || selectedPaymentForEdit.paymentDate || new Date().toISOString().split('T')[0],
                     referenceNumber: data.referenceNumber,
                     bankName: data.bankName,
                     notes: data.notes,
@@ -1340,6 +1339,23 @@ export default function Collections() {
                           placeholder="Enter amount"
                           {...field}
                           defaultValue={(selectedPaymentForEdit.amount / 100).toString()}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={paymentForm.control}
+                  name="paymentDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payment Date</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          {...field}
+                          defaultValue={selectedPaymentForEdit.paymentDate || new Date().toISOString().split('T')[0]}
                         />
                       </FormControl>
                       <FormMessage />
@@ -1405,10 +1421,6 @@ export default function Collections() {
                     Cancel
                   </Button>
                 </div>
-                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  Auto-approval after 30 minutes if not reviewed
-                </div>
               </form>
             </Form>
           )}
@@ -1421,7 +1433,7 @@ export default function Collections() {
           <DialogHeader>
             <DialogTitle>Edit Communication Details</DialogTitle>
             <DialogDescription>
-              Submit an edit request for this communication. It will be auto-approved after 30 minutes if not reviewed.
+              Submit an edit request for this communication.
             </DialogDescription>
           </DialogHeader>
           {selectedCommunicationForEdit && (
@@ -1437,8 +1449,6 @@ export default function Collections() {
                     outcome: data.outcome,
                     promisedAmount: data.promisedAmount ? parseFloat(data.promisedAmount) * 100 : null,
                     promisedDate: data.promisedDate,
-                    nextActionRequired: data.nextActionRequired,
-                    nextActionDate: data.nextActionDate,
                   },
                 });
               })} className="space-y-4">
@@ -1514,40 +1524,6 @@ export default function Collections() {
                     )}
                   />
                 </div>
-                <FormField
-                  control={communicationForm.control}
-                  name="nextActionRequired"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Next Action Required</FormLabel>
-                      <FormControl>
-                        <Input 
-                          placeholder="e.g., Follow up call" 
-                          {...field}
-                          defaultValue={selectedCommunicationForEdit.nextActionRequired || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={communicationForm.control}
-                  name="nextActionDate"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Next Action Date</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="date" 
-                          {...field}
-                          defaultValue={selectedCommunicationForEdit.nextActionDate || ''}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
                 <div className="flex gap-2">
                   <Button type="submit" className="flex-1">
                     Submit Edit Request
@@ -1562,10 +1538,6 @@ export default function Collections() {
                   >
                     Cancel
                   </Button>
-                </div>
-                <div className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Clock className="h-3 w-3" />
-                  Auto-approval after 30 minutes if not reviewed
                 </div>
               </form>
             </Form>

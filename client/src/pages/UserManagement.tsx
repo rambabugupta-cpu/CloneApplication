@@ -392,12 +392,7 @@ export default function UserManagement() {
                       {editRequest.createdAt ? format(new Date(editRequest.createdAt), "dd MMM yyyy, hh:mm a") : 'N/A'}
                     </p>
                   </div>
-                  <div>
-                    <p className="text-muted-foreground">Auto-Approval Time</p>
-                    <p className="font-medium">
-                      {editRequest.autoApprovalTime ? format(new Date(editRequest.autoApprovalTime), "dd MMM yyyy, hh:mm a") : 'N/A'}
-                    </p>
-                  </div>
+
                 </div>
                 
                 {editRequest.entityType === 'payment' && editRequest.newData && (
