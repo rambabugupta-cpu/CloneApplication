@@ -330,17 +330,21 @@ export default function Collections() {
               filteredCollections?.map((collection: any) => (
                 <TableRow key={collection.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
                   <TableCell className="py-2">
-                    <div className="space-y-0.5">
-                      <p className="font-semibold text-sm truncate" title={collection.customerName || 'N/A'}>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="font-semibold truncate max-w-[30%]" title={collection.customerName || 'N/A'}>
                         {collection.customerName || 'N/A'}
-                      </p>
+                      </span>
                       {collection.customerCompany && (
-                        <p className="text-xs text-gray-600 dark:text-gray-400 truncate" title={collection.customerCompany}>
-                          {collection.customerCompany}
-                        </p>
+                        <>
+                          <span className="text-gray-400">•</span>
+                          <span className="text-xs text-gray-600 dark:text-gray-400 truncate max-w-[30%]" title={collection.customerCompany}>
+                            {collection.customerCompany}
+                          </span>
+                        </>
                       )}
+                      <span className="text-gray-400">•</span>
                       <div className="flex items-center gap-1 text-xs text-gray-500">
-                        <Phone className="h-3 w-3" />
+                        <Phone className="h-3 w-3 flex-shrink-0" />
                         <span>{collection.customerPhone || 'No phone'}</span>
                       </div>
                     </div>
