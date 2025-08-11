@@ -47,7 +47,7 @@ import {
   Phone, 
   Mail, 
   IndianRupee,
-  Calendar,
+  Calendar as CalendarIcon,
   AlertCircle,
   CheckCircle,
   Clock,
@@ -56,6 +56,9 @@ import {
   FileText
 } from "lucide-react";
 import { format } from "date-fns";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
 
 const paymentSchema = z.object({
@@ -239,7 +242,7 @@ export default function Collections() {
     );
   };
 
-  const filteredCollections = collections?.filter((collection: any) => {
+  const filteredCollections = (collections as any[])?.filter((collection: any) => {
     const matchesSearch = 
       collection.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       collection.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase());
@@ -593,7 +596,7 @@ export default function Collections() {
                     <FormLabel>Content</FormLabel>
                     <FormControl>
                       <textarea 
-                        className="w-full min-h-[100px] p-2 border rounded" 
+                        className="w-full min-h-[100px] p-2 border rounded text-black dark:text-white bg-white dark:bg-gray-800" 
                         placeholder="Describe the communication..." 
                         {...field} 
                       />
@@ -635,9 +638,30 @@ export default function Collections() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>Promised Date</FormLabel>
-                      <FormControl>
-                        <Input type="date" {...field} />
-                      </FormControl>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              <CalendarIcon className="mr-2 h-4 w-4" />
+                              {field.value ? format(new Date(field.value), "PPP") : <span>Pick a date</span>}
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value ? new Date(field.value) : undefined}
+                            onSelect={(date) => field.onChange(date ? format(date, "yyyy-MM-dd") : "")}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -674,7 +698,7 @@ export default function Collections() {
               <Label htmlFor="dispute-reason">Reason for Dispute</Label>
               <textarea
                 id="dispute-reason"
-                className="w-full min-h-[120px] p-2 border rounded mt-2"
+                className="w-full min-h-[120px] p-2 border rounded mt-2 text-black dark:text-white bg-white dark:bg-gray-800"
                 placeholder="Please provide detailed reason for the dispute..."
                 value={disputeReason}
                 onChange={(e) => setDisputeReason(e.target.value)}
