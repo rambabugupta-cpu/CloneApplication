@@ -385,7 +385,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Payments API Routes
   app.get("/api/collections/:id/payments", requireAuth, async (req, res) => {
     try {
-      const collectionId = parseInt(req.params.id);
+      const collectionId = req.params.id; // Keep as UUID string
       const payments = await storage.getPaymentsByCollection(collectionId);
       res.json(payments);
     } catch (error: any) {
@@ -395,15 +395,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/collections/:id/payments", requireAuth, async (req, res) => {
     try {
-      const collectionId = parseInt(req.params.id);
-      const paymentData = insertPaymentSchema.parse({
+      const collectionId = req.params.id; // Keep as UUID string
+      const paymentData = {
         ...req.body,
         collectionId,
         recordedBy: req.session.userId,
-      });
+        paymentDate: req.body.paymentDate || new Date().toISOString().split('T')[0], // Add default date if not provided
+      };
+      
+      console.log("Payment request:", JSON.stringify(paymentData, null, 2));
+      
       const payment = await storage.createPayment(paymentData);
       res.status(201).json(payment);
     } catch (error: any) {
+      console.error("Payment error:", error);
       if (error.name === 'ZodError') {
         return res.status(400).json({ error: "Invalid data", details: error.errors });
       }
@@ -414,7 +419,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Communications API Routes
   app.get("/api/collections/:id/communications", requireAuth, async (req, res) => {
     try {
-      const collectionId = parseInt(req.params.id);
+      const collectionId = req.params.id; // Keep as UUID string
       const communications = await storage.getCommunicationsByCollection(collectionId);
       res.json(communications);
     } catch (error: any) {

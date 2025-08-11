@@ -94,16 +94,16 @@ export class DatabaseStorage {
     return await collectionService.updateCollection(String(id), data);
   }
 
-  async getPaymentsByCollection(collectionId: number) {
-    return await paymentService.getPaymentsByCollection(String(collectionId));
+  async getPaymentsByCollection(collectionId: string) {
+    return await paymentService.getPaymentsByCollection(collectionId);
   }
 
   async createPayment(data: any) {
     return await paymentService.recordPayment(data);
   }
 
-  async getCommunicationsByCollection(collectionId: number) {
-    return await communicationService.getCommunicationsByCollection(String(collectionId));
+  async getCommunicationsByCollection(collectionId: string) {
+    return await communicationService.getCommunicationsByCollection(collectionId);
   }
 
   async createCommunication(data: any) {
