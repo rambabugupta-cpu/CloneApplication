@@ -357,10 +357,48 @@ export default function Collections() {
                     )}
                   </TableCell>
                   <TableCell>
-                    {collection.nextFollowupDate ? (
-                      <div className="text-sm">
-                        <p>{format(new Date(collection.nextFollowupDate), "dd MMM")}</p>
-                        <p className="text-gray-500">{format(new Date(collection.nextFollowupDate), "HH:mm")}</p>
+                    {collection.latestCommunication ? (
+                      <div className="text-sm space-y-1">
+                        {collection.latestCommunication.nextActionDate ? (
+                          <p className="font-medium">
+                            {format(new Date(collection.latestCommunication.nextActionDate), "dd MMM yyyy")}
+                          </p>
+                        ) : collection.latestCommunication.promisedDate ? (
+                          <p className="font-medium">
+                            Promise: {format(new Date(collection.latestCommunication.promisedDate), "dd MMM")}
+                          </p>
+                        ) : null}
+                        
+                        {collection.latestCommunication.type && (
+                          <p className="text-gray-600 dark:text-gray-400 capitalize">
+                            Last: {collection.latestCommunication.type}
+                          </p>
+                        )}
+                        
+                        {collection.latestCommunication.promisedAmount && (
+                          <p className="text-green-600 dark:text-green-400">
+                            ₹{(collection.latestCommunication.promisedAmount / 100).toLocaleString('en-IN')}
+                          </p>
+                        )}
+                        
+                        {collection.latestCommunication.nextActionRequired && (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate" 
+                             title={collection.latestCommunication.nextActionRequired}>
+                            {collection.latestCommunication.nextActionRequired}
+                          </p>
+                        )}
+                        
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="mt-1"
+                          onClick={() => {
+                            setSelectedCollection(collection);
+                            setShowCommunicationDialog(true);
+                          }}
+                        >
+                          Add Followup
+                        </Button>
                       </div>
                     ) : (
                       <Button

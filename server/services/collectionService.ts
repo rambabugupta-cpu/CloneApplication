@@ -160,7 +160,40 @@ export class CollectionService {
       query = query.where(and(...conditions)) as any;
     }
 
-    return await query.orderBy(desc(collections.dueDate));
+    const results = await query.orderBy(desc(collections.dueDate));
+    
+    // Import communications table
+    const { communications } = await import("@shared/schema");
+    
+    // Fetch latest communication for each collection
+    const collectionsWithComms = await Promise.all(results.map(async (collection) => {
+      // Get the latest communication for this collection
+      const latestComm = await db
+        .select({
+          id: communications.id,
+          type: communications.type,
+          content: communications.content,
+          outcome: communications.outcome,
+          promisedAmount: communications.promisedAmount,
+          promisedDate: communications.promisedDate,
+          nextActionRequired: communications.nextActionRequired,
+          nextActionDate: communications.nextActionDate,
+          createdAt: communications.createdAt,
+        })
+        .from(communications)
+        .where(eq(communications.collectionId, collection.id))
+        .orderBy(desc(communications.createdAt))
+        .limit(1);
+      
+      return {
+        ...collection,
+        latestCommunication: latestComm[0] || null,
+        // Update nextFollowupDate from communication if available
+        nextFollowupDate: latestComm[0]?.nextActionDate || collection.nextFollowupDate,
+      };
+    }));
+    
+    return collectionsWithComms;
   }
 
   async updatePaymentStatus(collectionId: string, paidAmount: number): Promise<void> {

@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, customers, collections } from "@shared/schema";
+import { users, customers, collections, communications, payments } from "@shared/schema";
 import bcrypt from "bcrypt";
 import { sql } from "drizzle-orm";
 
@@ -7,6 +7,9 @@ async function clearDatabase() {
   console.log("Clearing existing data...");
   
   // Clear tables in reverse dependency order
+  // Delete dependent tables first
+  await db.delete(communications).execute();
+  await db.delete(payments).execute();
   await db.delete(collections).execute();
   await db.delete(customers).execute();
   await db.delete(users).execute();
