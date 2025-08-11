@@ -332,73 +332,69 @@ export default function Collections() {
               </TableRow>
             ) : (
               filteredCollections?.map((collection: any, index: number) => (
-                <TableRow key={collection.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors">
-                  <TableCell className="py-1 text-center px-2 text-xs">
+                <TableRow key={collection.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors border-b-2 border-gray-100 dark:border-gray-700">
+                  <TableCell className="py-2 text-center px-2 text-sm font-medium">
                     {index + 1}
                   </TableCell>
-                  <TableCell className="py-1 px-2">
-                    <div className="flex items-center gap-1 text-xs whitespace-nowrap">
+                  <TableCell className="py-2 px-2">
+                    <div className="flex items-center gap-1 text-sm whitespace-nowrap">
                       <span className="font-semibold truncate" title={collection.customerName || 'N/A'}>
                         {collection.customerName || 'N/A'}
                       </span>
                       {collection.customerCompany && (
                         <>
-                          <span className="text-gray-400 text-xs">•</span>
-                          <span className="text-[10px] text-gray-600 dark:text-gray-400 truncate" title={collection.customerCompany}>
+                          <span className="text-gray-400">•</span>
+                          <span className="text-xs text-gray-600 dark:text-gray-400 truncate" title={collection.customerCompany}>
                             {collection.customerCompany}
                           </span>
                         </>
                       )}
-                      <span className="text-gray-400 text-xs">•</span>
-                      <div className="flex items-center gap-0.5 text-[10px] text-gray-500">
-                        <Phone className="h-2.5 w-2.5 flex-shrink-0" />
+                      <span className="text-gray-400">•</span>
+                      <div className="flex items-center gap-0.5 text-xs text-gray-500">
+                        <Phone className="h-3 w-3 flex-shrink-0" />
                         <span>{collection.customerPhone || 'No phone'}</span>
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="py-1 text-center px-2 whitespace-nowrap">
-                    <span className="font-bold text-xs">{formatCurrency(collection.outstandingAmount)}</span>
+                  <TableCell className="py-2 text-center px-2 whitespace-nowrap">
+                    <span className="font-bold text-sm">{formatCurrency(collection.outstandingAmount)}</span>
                   </TableCell>
-                  <TableCell className="py-1 text-center px-2 whitespace-nowrap">
+                  <TableCell className="py-2 text-center px-2 whitespace-nowrap">
                     {collection.lastPaymentAmount && collection.lastPaymentAmount > 0 ? (
-                      <div className="text-[10px]">
+                      <div className="text-sm">
                         <span className="font-medium text-green-600">{formatCurrency(collection.lastPaymentAmount)}</span>
                         {collection.lastPaymentDate && (
-                          <p className="text-gray-500 text-[9px]">
-                            {format(new Date(collection.lastPaymentDate), "dd/MM")}
+                          <p className="text-gray-500 text-xs">
+                            {format(new Date(collection.lastPaymentDate), "dd/MM/yyyy")}
                           </p>
                         )}
                       </div>
                     ) : (
-                      <span className="text-gray-500 text-[10px]">-</span>
+                      <span className="text-gray-500 text-sm">-</span>
                     )}
                   </TableCell>
-                  <TableCell className="py-1 px-2 whitespace-nowrap">
+                  <TableCell className="py-2 px-2 whitespace-nowrap text-center">
                     {collection.latestCommunication ? (
-                      <div className="flex items-center gap-1 text-[10px]">
-                        {collection.latestCommunication.nextActionDate ? (
-                          <span className="font-medium">
-                            {format(new Date(collection.latestCommunication.nextActionDate), "dd/MM")}
-                          </span>
-                        ) : collection.latestCommunication.promisedDate ? (
-                          <span className="font-medium">
-                            P:{format(new Date(collection.latestCommunication.promisedDate), "dd/MM")}
-                          </span>
+                      <div className="text-sm">
+                        {collection.latestCommunication.nextActionDate || collection.latestCommunication.promisedDate ? (
+                          <>
+                            <div className="font-medium">
+                              {collection.latestCommunication.nextActionDate 
+                                ? format(new Date(collection.latestCommunication.nextActionDate), "dd/MM/yyyy")
+                                : format(new Date(collection.latestCommunication.promisedDate), "dd/MM/yyyy")}
+                            </div>
+                            {collection.latestCommunication.promisedAmount && (
+                              <div className="text-green-600 dark:text-green-400 text-xs">
+                                ₹{(collection.latestCommunication.promisedAmount / 100).toLocaleString('en-IN')}
+                              </div>
+                            )}
+                          </>
                         ) : (
                           <span className="text-gray-500">-</span>
                         )}
-                        
-                        {collection.latestCommunication.promisedAmount && (
-                          <>
-                            <span className="text-gray-400 text-[9px]">•</span>
-                            <span className="text-green-600 dark:text-green-400 text-[10px]">
-                              ₹{(collection.latestCommunication.promisedAmount / 100).toLocaleString('en-IN')}
-                            </span>
-                          </>
-                        )}
                       </div>
                     ) : (
-                      <span className="text-gray-500 text-[10px]">-</span>
+                      <span className="text-gray-500 text-sm">-</span>
                     )}
                   </TableCell>
                   <TableCell className="py-1 px-1">
