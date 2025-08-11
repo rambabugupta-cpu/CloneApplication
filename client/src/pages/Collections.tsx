@@ -292,7 +292,7 @@ export default function Collections() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Invoice</TableHead>
+              <TableHead>Import Date</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Due Date</TableHead>
               <TableHead>Outstanding</TableHead>
@@ -320,7 +320,10 @@ export default function Collections() {
               filteredCollections?.map((collection: any) => (
                 <TableRow key={collection.id}>
                   <TableCell className="font-medium">
-                    {collection.invoiceNumber}
+                    <div className="text-sm">
+                      <p>{format(new Date(collection.createdAt || collection.importedAt || Date.now()), "dd MMM yyyy")}</p>
+                      <p className="text-gray-500">{format(new Date(collection.createdAt || collection.importedAt || Date.now()), "HH:mm:ss")}</p>
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div>

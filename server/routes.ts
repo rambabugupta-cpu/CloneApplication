@@ -582,15 +582,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
                                (row as any)['Code'] || 
                                `CUST-${Date.now()}-${i}`;
             
+            // Extract email and phone
+            const customerEmail = (row as any)['Email'] || 
+                                (row as any)['email'] || 
+                                `${customerName.toLowerCase().replace(/\s+/g, '.')}@customer.local`;
+            
+            const customerPhone = (row as any)['Phone Number'] || 
+                                (row as any)['Phone'] || 
+                                (row as any)['Mobile'] || 
+                                (row as any)['Contact'] || '';
+            
             customer = await storage.createCustomer({
               primaryContactName: customerName,
               customerCode: customerCode,
-              // Make phone optional - provide empty string if not present
-              primaryPhone: (row as any)['Phone Number'] || 
-                          (row as any)['Phone'] || 
-                          (row as any)['Mobile'] || 
-                          (row as any)['Contact'] || '',
-              primaryEmail: (row as any)['Email'] || '',
+              primaryPhone: customerPhone,
+              primaryEmail: customerEmail,
               gstNumber: (row as any)['GST Number'] || (row as any)['GST'] || '',
               addressLine1: (row as any)['Address'] || '',
               city: (row as any)['City'] || '',
@@ -600,6 +606,29 @@ export async function registerRoutes(app: Express): Promise<Server> {
               creditDays: parseInt((row as any)['Credit Days'] || '30') || 30,
             });
             importedCustomers.push(customer);
+            
+            // Create a user account for the customer if email is valid
+            if (customerEmail && !customerEmail.endsWith('@customer.local')) {
+              try {
+                // Check if user with this email already exists
+                const existingUser = await storage.getUserByEmail(customerEmail);
+                if (!existingUser) {
+                  // Create customer user account with default password
+                  const defaultPassword = `${customerCode}@123`; // Customer code + @123
+                  await storage.createUser({
+                    email: customerEmail,
+                    passwordHash: defaultPassword, // Will be hashed in createUser
+                    fullName: customerName,
+                    phoneNumber: customerPhone,
+                    role: 'customer',
+                  });
+                  console.log(`Created customer user account for ${customerName} with email ${customerEmail}`);
+                }
+              } catch (userError) {
+                console.error(`Failed to create user account for customer ${customerName}:`, userError);
+                // Continue with import even if user creation fails
+              }
+            }
           }
 
           // Create collection record
