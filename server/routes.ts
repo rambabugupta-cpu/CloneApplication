@@ -440,6 +440,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Dispute API Routes
+  app.post("/api/collections/:id/dispute", requireAuth, async (req, res) => {
+    try {
+      const collectionId = req.params.id;
+      const { reason } = req.body;
+      
+      if (!reason || reason.trim() === '') {
+        return res.status(400).json({ error: "Dispute reason is required" });
+      }
+      
+      await storage.raiseDispute(collectionId, reason, req.session.userId);
+      res.status(200).json({ message: "Dispute raised successfully" });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Dashboard API Routes
   app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     try {

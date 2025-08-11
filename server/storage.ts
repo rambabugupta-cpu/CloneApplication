@@ -110,6 +110,10 @@ export class DatabaseStorage {
     return await communicationService.createCommunication(data);
   }
 
+  async raiseDispute(collectionId: string, reason: string, userId: string) {
+    return await collectionService.raiseDispute(collectionId, reason, userId);
+  }
+
   // Customer operations for Excel import
   async getCustomerByName(name: string) {
     if (!name) return null;

@@ -164,6 +164,10 @@ export const collections = pgTable("collections", {
   assignedTo: uuid("assigned_to").references(() => users.id),
   escalationLevel: integer("escalation_level").default(0),
   
+  // Dispute tracking
+  disputeRaisedAt: timestamp("dispute_raised_at"),
+  disputeReason: text("dispute_reason"),
+  
   // Import tracking
   importBatchId: uuid("import_batch_id"),
   

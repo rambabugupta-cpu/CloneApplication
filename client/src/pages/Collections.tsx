@@ -85,6 +85,8 @@ export default function Collections() {
   const [selectedCollection, setSelectedCollection] = useState<any>(null);
   const [showPaymentDialog, setShowPaymentDialog] = useState(false);
   const [showCommunicationDialog, setShowCommunicationDialog] = useState(false);
+  const [showDisputeDialog, setShowDisputeDialog] = useState(false);
+  const [disputeReason, setDisputeReason] = useState("");
 
   const { data: collections, isLoading } = useQuery({
     queryKey: ["/api/collections", statusFilter, searchTerm],
@@ -176,6 +178,36 @@ export default function Collections() {
     },
   });
 
+  const raiseDispute = useMutation({
+    mutationFn: async (data: { collectionId: string; reason: string }) => {
+      return apiRequest(`/api/collections/${data.collectionId}/dispute`, {
+        method: "POST",
+        body: JSON.stringify({ reason: data.reason }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Dispute Raised",
+        description: "The dispute has been raised successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      setShowDisputeDialog(false);
+      setDisputeReason("");
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to raise dispute",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleRaiseDispute = (collection: any) => {
+    setSelectedCollection(collection);
+    setShowDisputeDialog(true);
+  };
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
@@ -262,19 +294,21 @@ export default function Collections() {
               <TableHead>Outstanding</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Aging</TableHead>
+              <TableHead>Next Followup</TableHead>
+              <TableHead>Dispute</TableHead>
               <TableHead>Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={9} className="text-center py-8">
                   Loading collections...
                 </TableCell>
               </TableRow>
             ) : filteredCollections?.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8">
+                <TableCell colSpan={9} className="text-center py-8">
                   No collections found
                 </TableCell>
               </TableRow>
@@ -286,8 +320,11 @@ export default function Collections() {
                   </TableCell>
                   <TableCell>
                     <div>
-                      <p className="font-medium">{collection.customerName}</p>
-                      <p className="text-sm text-gray-500">{collection.customerPhone}</p>
+                      <p className="font-medium">{collection.customerName || 'N/A'}</p>
+                      {collection.customerCompany && (
+                        <p className="text-sm text-gray-500">{collection.customerCompany}</p>
+                      )}
+                      <p className="text-sm text-gray-500">{collection.customerPhone || 'No phone'}</p>
                     </div>
                   </TableCell>
                   <TableCell>
@@ -313,6 +350,42 @@ export default function Collections() {
                       </span>
                     ) : (
                       <span className="text-sm text-green-600">Current</span>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {collection.nextFollowupDate ? (
+                      <div className="text-sm">
+                        <p>{format(new Date(collection.nextFollowupDate), "dd MMM")}</p>
+                        <p className="text-gray-500">{format(new Date(collection.nextFollowupDate), "HH:mm")}</p>
+                      </div>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => {
+                          setSelectedCollection(collection);
+                          setShowCommunicationDialog(true);
+                        }}
+                      >
+                        Schedule
+                      </Button>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {collection.disputeRaisedAt ? (
+                      <Badge className="bg-orange-500 text-white">
+                        <AlertCircle className="w-3 h-3 mr-1" />
+                        Disputed
+                      </Badge>
+                    ) : (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="text-orange-600 hover:text-orange-700"
+                        onClick={() => handleRaiseDispute(collection)}
+                      >
+                        Raise
+                      </Button>
                     )}
                   </TableCell>
                   <TableCell>
@@ -583,6 +656,61 @@ export default function Collections() {
               </div>
             </form>
           </Form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dispute Dialog */}
+      <Dialog open={showDisputeDialog} onOpenChange={setShowDisputeDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Raise Dispute</DialogTitle>
+            <DialogDescription>
+              Raise a dispute for invoice {selectedCollection?.invoiceNumber}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="dispute-reason">Reason for Dispute</Label>
+              <textarea
+                id="dispute-reason"
+                className="w-full min-h-[120px] p-2 border rounded mt-2"
+                placeholder="Please provide detailed reason for the dispute..."
+                value={disputeReason}
+                onChange={(e) => setDisputeReason(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  if (disputeReason.trim()) {
+                    raiseDispute.mutate({
+                      collectionId: selectedCollection.id,
+                      reason: disputeReason
+                    });
+                  } else {
+                    toast({
+                      title: "Error",
+                      description: "Please provide a reason for the dispute",
+                      variant: "destructive",
+                    });
+                  }
+                }}
+                className="flex-1"
+                disabled={!disputeReason.trim()}
+              >
+                Raise Dispute
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDisputeDialog(false);
+                  setDisputeReason("");
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

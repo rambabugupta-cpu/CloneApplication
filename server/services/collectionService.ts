@@ -99,7 +99,7 @@ export class CollectionService {
     toDate?: Date;
     minAmount?: number;
     maxAmount?: number;
-  }): Promise<Collection[]> {
+  }): Promise<any[]> {
     const conditions = [];
 
     if (filters.status) {
@@ -124,10 +124,40 @@ export class CollectionService {
       conditions.push(lte(collections.outstandingAmount, filters.maxAmount));
     }
 
-    let query = db.select().from(collections);
+    let query = db.select({
+      id: collections.id,
+      customerId: collections.customerId,
+      invoiceNumber: collections.invoiceNumber,
+      invoiceDate: collections.invoiceDate,
+      dueDate: collections.dueDate,
+      originalAmount: collections.originalAmount,
+      outstandingAmount: collections.outstandingAmount,
+      paidAmount: collections.paidAmount,
+      status: collections.status,
+      agingDays: collections.agingDays,
+      promisedAmount: collections.promisedAmount,
+      promisedDate: collections.promisedDate,
+      lastFollowupDate: collections.lastFollowupDate,
+      nextFollowupDate: collections.nextFollowupDate,
+      assignedTo: collections.assignedTo,
+      escalationLevel: collections.escalationLevel,
+      disputeRaisedAt: collections.disputeRaisedAt,
+      disputeReason: collections.disputeReason,
+      notes: collections.notes,
+      createdAt: collections.createdAt,
+      updatedAt: collections.updatedAt,
+      // Customer details
+      customerName: customers.primaryContactName,
+      customerCompany: customers.companyName,
+      customerPhone: customers.primaryPhone,
+      customerEmail: customers.primaryEmail,
+      customerCode: customers.customerCode,
+    })
+    .from(collections)
+    .leftJoin(customers, eq(collections.customerId, customers.id));
     
     if (conditions.length > 0) {
-      query = query.where(and(...conditions));
+      query = query.where(and(...conditions)) as any;
     }
 
     return await query.orderBy(desc(collections.dueDate));
@@ -175,7 +205,18 @@ export class CollectionService {
 
     await db.update(collections)
       .set({
-        escalationLevel: collection.escalationLevel + 1,
+        escalationLevel: (collection.escalationLevel || 0) + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(collections.id, collectionId));
+  }
+
+  async raiseDispute(collectionId: string, reason: string, userId: string): Promise<void> {
+    await db.update(collections)
+      .set({
+        disputeRaisedAt: new Date(),
+        disputeReason: reason,
+        status: "overdue" as const,
         updatedAt: new Date(),
       })
       .where(eq(collections.id, collectionId));
