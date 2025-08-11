@@ -115,6 +115,12 @@ export default function Collections() {
     enabled: !!user,
   });
 
+  // Debug: Log collections data
+  useEffect(() => {
+    console.log('Collections data:', collections);
+    console.log('Collections loading:', isLoading);
+  }, [collections, isLoading]);
+
   // Fetch payment history for a collection
   const fetchPaymentHistory = async (collectionId: string) => {
     try {
