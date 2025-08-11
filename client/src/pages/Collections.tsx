@@ -56,7 +56,10 @@ import {
   FileText,
   ClipboardList,
   MessageCircle,
-  Send
+  Send,
+  ChevronUp,
+  ChevronDown,
+  ArrowUpDown
 } from "lucide-react";
 import { SiWhatsapp } from "react-icons/si";
 import { format } from "date-fns";
@@ -95,6 +98,8 @@ export default function Collections() {
   const [showCommunicationDialog, setShowCommunicationDialog] = useState(false);
   const [showDisputeDialog, setShowDisputeDialog] = useState(false);
   const [disputeReason, setDisputeReason] = useState("");
+  const [sortBy, setSortBy] = useState<'customer' | 'outstanding' | 'followup'>('customer');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const { data: collections, isLoading } = useQuery({
     queryKey: ["/api/collections", statusFilter, searchTerm],
@@ -255,6 +260,61 @@ export default function Collections() {
     const matchesStatus = statusFilter === "all" || collection.status === statusFilter;
     
     return matchesSearch && matchesStatus;
+  })?.sort((a: any, b: any) => {
+    // Always sort by customer name first (A-Z)
+    if (sortBy === 'customer') {
+      const nameA = (a.customerName || '').toLowerCase();
+      const nameB = (b.customerName || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    }
+    
+    // Sort by outstanding amount (highest to lowest)
+    if (sortBy === 'outstanding') {
+      return sortOrder === 'desc' 
+        ? b.outstandingAmount - a.outstandingAmount 
+        : a.outstandingAmount - b.outstandingAmount;
+    }
+    
+    // Sort by next followup date (nearest to today first, past dates on top)
+    if (sortBy === 'followup') {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      
+      const getFollowupDate = (collection: any) => {
+        if (collection.latestCommunication?.nextActionDate) {
+          return new Date(collection.latestCommunication.nextActionDate);
+        }
+        if (collection.latestCommunication?.promisedDate) {
+          return new Date(collection.latestCommunication.promisedDate);
+        }
+        return null;
+      };
+      
+      const dateA = getFollowupDate(a);
+      const dateB = getFollowupDate(b);
+      
+      // Handle null dates (put at the end)
+      if (!dateA && !dateB) return 0;
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+      
+      // Check if dates are past
+      const isPastA = dateA < today;
+      const isPastB = dateB < today;
+      
+      // Past dates come first
+      if (isPastA && !isPastB) return -1;
+      if (!isPastA && isPastB) return 1;
+      
+      // Both past or both future: sort by date
+      if (sortOrder === 'asc') {
+        return dateA.getTime() - dateB.getTime();
+      } else {
+        return dateB.getTime() - dateA.getTime();
+      }
+    }
+    
+    return 0;
   });
 
   return (
@@ -310,10 +370,59 @@ export default function Collections() {
           <TableHeader>
             <TableRow className="bg-gray-50 dark:bg-gray-900">
               <TableHead className="font-semibold text-center w-auto whitespace-nowrap px-2">S.No</TableHead>
-              <TableHead className="font-semibold text-center min-w-[200px] px-2">Customer</TableHead>
-              <TableHead className="font-semibold text-center w-auto whitespace-nowrap px-2">Outstanding</TableHead>
+              <TableHead className="font-semibold text-center min-w-[200px] px-2">
+                <div className="flex items-center justify-center gap-1">
+                  <span>Customer</span>
+                  {sortBy === 'customer' && (
+                    <ChevronUp className="h-3 w-3 text-blue-600" />
+                  )}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="font-semibold text-center w-auto whitespace-nowrap px-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => {
+                  if (sortBy === 'outstanding') {
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortBy('outstanding');
+                    setSortOrder('desc');
+                  }
+                }}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  <span>Outstanding</span>
+                  {sortBy === 'outstanding' ? (
+                    sortOrder === 'desc' ? 
+                      <ChevronDown className="h-3 w-3 text-blue-600" /> : 
+                      <ChevronUp className="h-3 w-3 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3 text-gray-400" />
+                  )}
+                </div>
+              </TableHead>
               <TableHead className="font-semibold text-center w-auto whitespace-nowrap px-2">Last Payment</TableHead>
-              <TableHead className="font-semibold text-center w-auto whitespace-nowrap px-2">Next Followup</TableHead>
+              <TableHead 
+                className="font-semibold text-center w-auto whitespace-nowrap px-2 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800"
+                onClick={() => {
+                  if (sortBy === 'followup') {
+                    setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                  } else {
+                    setSortBy('followup');
+                    setSortOrder('asc');
+                  }
+                }}
+              >
+                <div className="flex items-center justify-center gap-1">
+                  <span>Next Followup</span>
+                  {sortBy === 'followup' ? (
+                    sortOrder === 'asc' ? 
+                      <ChevronUp className="h-3 w-3 text-blue-600" /> : 
+                      <ChevronDown className="h-3 w-3 text-blue-600" />
+                  ) : (
+                    <ArrowUpDown className="h-3 w-3 text-gray-400" />
+                  )}
+                </div>
+              </TableHead>
               <TableHead className="font-semibold text-center w-auto whitespace-nowrap px-2">Actions</TableHead>
             </TableRow>
           </TableHeader>
