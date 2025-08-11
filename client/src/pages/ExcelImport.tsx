@@ -140,9 +140,9 @@ Priya Sharma,CUST002,9876543211,250000,INV-2024-002,05/01/2024,04/02/2024,Sharma
   return (
     <div className="container mx-auto p-6">
       <div className="mb-6">
-        <h1 className="text-3xl font-bold">Import from Tally</h1>
+        <h1 className="text-3xl font-bold">Import from Excel</h1>
         <p className="text-gray-600 dark:text-gray-400">
-          Import sundry debtors list from Tally Excel export
+          Import sundry debtors list from Excel export
         </p>
       </div>
 

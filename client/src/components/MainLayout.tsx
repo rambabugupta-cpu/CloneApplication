@@ -66,8 +66,8 @@ export default function MainLayout({ children }: MainLayoutProps) {
       )}>
         <div className="flex flex-col h-full">
           <div className="p-6 border-b">
-            <h2 className="text-xl font-bold">Tally Collections</h2>
-            <p className="text-sm text-muted-foreground mt-1">Management System</p>
+            <h2 className="text-xl font-bold">RBG Infra Developers LLP</h2>
+            <p className="text-sm text-muted-foreground mt-1">Collection Management</p>
           </div>
 
           <nav className="flex-1 p-4">

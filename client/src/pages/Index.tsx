@@ -28,7 +28,7 @@ const Index = () => {
       <div className="container mx-auto">
         <div className="flex justify-between items-center mb-8">
           <div>
-            <h1 className="text-3xl font-bold transition-colors duration-300">Collection Management System</h1>
+            <h1 className="text-3xl font-bold transition-colors duration-300">RBG Infra Developers LLP</h1>
             <p className="text-muted-foreground transition-colors duration-300">Welcome back, {user?.email}</p>
             {role && (
               <div className="flex items-center gap-2 mt-2">

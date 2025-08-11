@@ -91,7 +91,7 @@ const Auth = () => {
         </div>
         <Card className="w-full transition-all duration-300 border-2 hover:border-primary/20">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl text-center transition-colors duration-300">Collection Management</CardTitle>
+          <CardTitle className="text-2xl text-center transition-colors duration-300">RBG Infra Developers LLP</CardTitle>
           <CardDescription className="text-center transition-colors duration-300">
             Sign in to your account or create a new one
           </CardDescription>

@@ -1,7 +1,7 @@
-# Tally Collection Management System
+# RBG Infra Developers LLP - Collection Management System
 
 ## Overview
-A comprehensive collection management system designed for businesses using Tally software. The system automates the sundry debtors collection process with full transparency, enabling owners to monitor staff activities and track collection performance without manual intervention. Built for 1000+ users with real-time updates and high security.
+A comprehensive collection management system designed for RBG Infra Developers LLP. The system automates the sundry debtors collection process with full transparency, enabling owners to monitor staff activities and track collection performance without manual intervention. Built for 1000+ users with real-time updates and high security.
 
 ## Architecture
 - **Frontend**: React with TypeScript, Tailwind CSS, shadcn/ui components
@@ -10,12 +10,12 @@ A comprehensive collection management system designed for businesses using Tally
 - **Authentication**: Session-based authentication with bcrypt password hashing
 - **Real-time**: WebSocket support for live updates
 - **Security**: Role-based access control, audit logging, approval workflows
-- **Integration**: Tally Excel import with validation and matching
+- **Integration**: Excel import with validation and matching
 
 ## Key Features
 
 ### Core Functionality
-- **Tally Integration**: Direct Excel import from Tally software for sundry debtors
+- **Excel Integration**: Direct Excel import from accounting software for sundry debtors
 - **Automated Collection Process**: Streamlined workflow from import to collection
 - **Real-time Monitoring**: Track staff activities and collection progress live
 - **Approval Workflow**: Admin approval required for all payment recordings
@@ -51,7 +51,7 @@ A comprehensive collection management system designed for businesses using Tally
 
 ## Database Schema
 - `users`: Core user authentication data (UUID, email, fullName, password_hash, role, status)
-- `customers`: Detailed customer information with Tally codes, GST, contact details
+- `customers`: Detailed customer information with accounting codes, GST, contact details
 - `collections`: Outstanding amounts to be collected (invoices, amounts, status, aging)
 - `payments`: Payment tracking with approval workflow (pending/approved/rejected)
 - `communications`: All customer interactions (calls, emails, SMS, visits)
@@ -131,6 +131,7 @@ A comprehensive collection management system designed for businesses using Tally
 - Input validation with Zod schemas
 
 ## Recent Changes
+- **2025-08-11**: Rebranded application from "Tally Collections Management System" to "RBG Infra Developers LLP"
 - **2025-08-10**: Successfully completed migration from Lovable to Replit
 - **2025-08-10**: Implemented new authentication system replacing Supabase
 - **2025-08-10**: Added database seeding for admin user creation
