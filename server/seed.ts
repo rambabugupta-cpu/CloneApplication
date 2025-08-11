@@ -263,6 +263,59 @@ async function seedDatabase() {
     });
     
     console.log("Created sample collections");
+    
+    // Create sample communications with follow-up data
+    const collections1 = await db.select().from(collections).limit(1);
+    const collections2 = await db.select().from(collections).offset(1).limit(1);
+    const collections3 = await db.select().from(collections).offset(2).limit(1);
+    
+    if (collections1.length > 0) {
+      await db.insert(communications).values({
+        collectionId: collections1[0].id,
+        customerId: collections1[0].customerId,
+        createdBy: staff1.id,
+        type: "call",
+        direction: "outbound",
+        content: "Called customer regarding overdue payment",
+        outcome: "successful",
+        promisedAmount: 500000, // 5000 rupees
+        promisedDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
+        nextActionRequired: "Follow up on promised payment",
+        nextActionDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 7 days from now
+      });
+    }
+    
+    if (collections2.length > 0) {
+      await db.insert(communications).values({
+        collectionId: collections2[0].id,
+        customerId: collections2[0].customerId,
+        createdBy: staff2.id,
+        type: "email",
+        direction: "outbound",
+        content: "Sent payment reminder email",
+        outcome: "pending",
+        nextActionRequired: "Call customer if no response in 2 days",
+        nextActionDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 2 days from now
+      });
+    }
+    
+    if (collections3.length > 0) {
+      await db.insert(communications).values({
+        collectionId: collections3[0].id,
+        customerId: collections3[0].customerId,
+        createdBy: staff1.id,
+        type: "visit",
+        direction: "outbound",
+        content: "Visited customer office for collection",
+        outcome: "successful",
+        promisedAmount: 850000, // 8500 rupees
+        promisedDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 14 days from now
+        nextActionRequired: "Collect payment on promised date",
+        nextActionDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 14 days from now
+      });
+    }
+    
+    console.log("Created sample communications with follow-up data");
     console.log("Database seed completed successfully!");
     
     console.log("\n=== Login Credentials ===");

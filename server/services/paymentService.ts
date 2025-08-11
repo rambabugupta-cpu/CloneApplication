@@ -19,13 +19,18 @@ export class PaymentService {
   private auditService = new AuditService();
 
   async recordPayment(data: InsertPayment & { recordedBy: string; userRole?: string }): Promise<Payment> {
-    // Start transaction
-    const payment = await db.transaction(async (tx) => {
+    try {
       // Check if payment should be auto-approved (admin/owner)
       const isAutoApproved = data.userRole === 'admin' || data.userRole === 'owner';
       
+      // Get collection details first
+      const [collection] = await db.select().from(collections).where(eq(collections.id, data.collectionId));
+      if (!collection) {
+        throw new Error("Collection not found");
+      }
+      
       // Create payment record
-      const [newPayment] = await tx.insert(payments).values({
+      const [newPayment] = await db.insert(payments).values({
         ...data,
         status: isAutoApproved ? "approved" : "pending_approval",
         recordedBy: data.recordedBy,
@@ -33,27 +38,21 @@ export class PaymentService {
         approvedAt: isAutoApproved ? new Date() : undefined,
       }).returning();
 
-      // Get collection details
-      const [collection] = await tx.select().from(collections).where(eq(collections.id, data.collectionId));
-      if (!collection) {
-        throw new Error("Collection not found");
-      }
-
       // Only create approval notification if not auto-approved
       if (!isAutoApproved) {
-        const [notification] = await tx.insert(notifications).values({
+        await db.insert(notifications).values({
           userId: data.recordedBy, // This will be sent to admins, but we track who triggered it
           type: "payment_received",
           title: "Payment Approval Required",
           message: `Payment of ₹${(data.amount / 100).toFixed(2)} requires approval`,
           collectionId: collection.id,
           paymentId: newPayment.id,
-        }).returning();
+        });
       }
 
       // If auto-approved, update collection amounts immediately
       if (isAutoApproved) {
-        await tx.update(collections)
+        await db.update(collections)
           .set({
             outstandingAmount: sql`${collections.outstandingAmount} - ${data.amount}`,
             paidAmount: sql`${collections.paidAmount} + ${data.amount}`,
@@ -69,19 +68,20 @@ export class PaymentService {
           .where(eq(collections.id, data.collectionId));
       }
 
-      // Create audit log using transaction context
-      const [auditLog] = await tx.insert(auditLogs).values({
+      // Create audit log
+      await db.insert(auditLogs).values({
         userId: data.recordedBy,
         action: isAutoApproved ? "payment_recorded_approved" : "payment_recorded",
         entityType: "payment",
         entityId: newPayment.id,
         newValue: newPayment,
-      }).returning();
+      });
 
       return newPayment;
-    });
-
-    return payment;
+    } catch (error) {
+      console.error("Payment recording error:", error);
+      throw error;
+    }
   }
 
   async approvePayment(paymentId: string, approvedBy: string): Promise<Payment> {
@@ -94,10 +94,9 @@ export class PaymentService {
       throw new Error("Payment is not pending approval");
     }
 
-    // Start transaction
-    const approvedPayment = await db.transaction(async (tx) => {
+    try {
       // Update payment status
-      const [updated] = await tx.update(payments)
+      const [updated] = await db.update(payments)
         .set({
           status: "approved",
           approvedBy,
@@ -131,9 +130,10 @@ export class PaymentService {
       });
 
       return updated;
-    });
-
-    return approvedPayment;
+    } catch (error) {
+      console.error("Payment approval error:", error);
+      throw error;
+    }
   }
 
   async rejectPayment(paymentId: string, rejectedBy: string, reason: string = "Not specified"): Promise<Payment> {
