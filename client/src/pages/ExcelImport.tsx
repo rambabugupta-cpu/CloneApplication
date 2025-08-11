@@ -304,6 +304,48 @@ Priya Sharma,CUST002,9876543211,250000,INV-2024-002,05/01/2024,04/02/2024,Sharma
                   </AlertDescription>
                 </Alert>
               )}
+
+              {/* Display Created User Accounts */}
+              {importResult.createdUserAccounts && importResult.createdUserAccounts.length > 0 && (
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-3">Created Customer User Accounts</h3>
+                  <Alert className="mb-3">
+                    <CheckCircle className="h-4 w-4" />
+                    <AlertTitle>Important: Save These Login Credentials</AlertTitle>
+                    <AlertDescription>
+                      The following customer user accounts have been created. Please save these credentials and share them with your customers.
+                    </AlertDescription>
+                  </Alert>
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Customer Name</TableHead>
+                          <TableHead>Customer Code</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Password</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {importResult.createdUserAccounts.map((account: any, index: number) => (
+                          <TableRow key={index}>
+                            <TableCell className="font-medium">{account.fullName}</TableCell>
+                            <TableCell>{account.customerCode}</TableCell>
+                            <TableCell className="text-blue-600">{account.email}</TableCell>
+                            <TableCell className="font-mono text-sm">{account.password}</TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-sm text-gray-600">
+                      <strong>Note:</strong> All customers can now log in to view their outstanding amounts and payment history using the credentials above. 
+                      They will appear in the Users page with "Customer" role.
+                    </p>
+                  </div>
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

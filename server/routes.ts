@@ -519,6 +519,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Store imported customers and collections for response
       const importedCustomers: any[] = [];
       const importedCollections: any[] = [];
+      const createdUserAccounts: any[] = [];
 
       for (let i = 0; i < jsonData.length; i++) {
         const row = jsonData[i];
@@ -607,27 +608,38 @@ export async function registerRoutes(app: Express): Promise<Server> {
             });
             importedCustomers.push(customer);
             
-            // Create a user account for the customer if email is valid
-            if (customerEmail && !customerEmail.endsWith('@customer.local')) {
-              try {
-                // Check if user with this email already exists
-                const existingUser = await storage.getUserByEmail(customerEmail);
-                if (!existingUser) {
-                  // Create customer user account with default password
-                  const defaultPassword = `${customerCode}@123`; // Customer code + @123
-                  await storage.createUser({
-                    email: customerEmail,
-                    passwordHash: defaultPassword, // Will be hashed in createUser
-                    fullName: customerName,
-                    phoneNumber: customerPhone,
-                    role: 'customer',
-                  });
-                  console.log(`Created customer user account for ${customerName} with email ${customerEmail}`);
-                }
-              } catch (userError) {
-                console.error(`Failed to create user account for customer ${customerName}:`, userError);
-                // Continue with import even if user creation fails
+            // Always create a user account for every imported customer
+            try {
+              // Use provided email or generate a default one
+              const userEmail = customerEmail.endsWith('@customer.local') ? 
+                              customerEmail : 
+                              (customerEmail || `${customerCode.toLowerCase()}@customer.local`);
+              
+              // Check if user with this email already exists
+              const existingUser = await storage.getUserByEmail(userEmail);
+              if (!existingUser) {
+                // Create customer user account with default password
+                const defaultPassword = `${customerCode}@123`; // Customer code + @123
+                const newUser = await storage.createUser({
+                  email: userEmail,
+                  passwordHash: defaultPassword, // Will be hashed in createUser
+                  fullName: customerName,
+                  phoneNumber: customerPhone,
+                  role: 'customer',
+                });
+                createdUserAccounts.push({
+                  email: userEmail,
+                  password: defaultPassword,
+                  fullName: customerName,
+                  customerCode: customerCode
+                });
+                console.log(`Created customer user account for ${customerName} with email ${userEmail} and password ${defaultPassword}`);
+              } else {
+                console.log(`User account already exists for ${customerName} with email ${userEmail}`);
               }
+            } catch (userError) {
+              console.error(`Failed to create user account for customer ${customerName}:`, userError);
+              // Continue with import even if user creation fails
             }
           }
 
@@ -657,13 +669,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       res.json({
-        message: `File processed successfully. ${successRecords} records imported, ${failedRecords} failed.`,
+        message: `File processed successfully. ${successRecords} records imported, ${failedRecords} failed. Created ${createdUserAccounts.length} customer user accounts.`,
         totalRecords: jsonData.length,
         successRecords,
         failedRecords,
         errors: errors.slice(0, 10), // First 10 errors for debugging
         importedCustomers: importedCustomers.slice(0, 10), // Show first 10 imported customers
         importedCollections: importedCollections.slice(0, 10), // Show first 10 imported collections
+        createdUserAccounts: createdUserAccounts, // Show all created user accounts with login credentials
       });
     } catch (error: any) {
       console.error("Excel upload error:", error);
