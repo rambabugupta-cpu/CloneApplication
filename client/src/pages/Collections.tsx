@@ -53,7 +53,10 @@ import {
   Clock,
   MessageSquare,
   DollarSign,
-  FileText
+  FileText,
+  ClipboardList,
+  MessageCircle,
+  Send
 } from "lucide-react";
 import { format } from "date-fns";
 import { Calendar } from "@/components/ui/calendar";
@@ -421,7 +424,7 @@ export default function Collections() {
                               setShowCommunicationDialog(true);
                             }}
                           >
-                            <MessageSquare className="h-4 w-4" />
+                            <ClipboardList className="h-4 w-4" />
                           </Button>
                           <Button
                             size="sm"
@@ -430,6 +433,31 @@ export default function Collections() {
                             onClick={() => window.location.href = `tel:${collection.customerPhone}`}
                           >
                             <Phone className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            title="Send WhatsApp"
+                            className="text-green-600 hover:text-green-700"
+                            onClick={() => {
+                              const phone = collection.customerPhone?.replace(/[^0-9]/g, '');
+                              const message = encodeURIComponent(`Hello ${collection.customerName}, this is regarding your outstanding amount of ${formatCurrency(collection.outstandingAmount)}.`);
+                              window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+                            }}
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            title="Send SMS"
+                            className="text-blue-600 hover:text-blue-700"
+                            onClick={() => {
+                              const message = encodeURIComponent(`Reminder: Outstanding amount ${formatCurrency(collection.outstandingAmount)} is due.`);
+                              window.location.href = `sms:${collection.customerPhone}?body=${message}`;
+                            }}
+                          >
+                            <Send className="h-4 w-4" />
                           </Button>
                           {!collection.disputeRaisedAt && (
                             <Button
