@@ -244,22 +244,24 @@ export class CollectionService {
     }
     
     // Batch fetch all communications for these collections
-    const allComms = await db
-      .select({
-        collectionId: communications.collectionId,
-        id: communications.id,
-        type: communications.type,
-        content: communications.content,
-        outcome: communications.outcome,
-        promisedAmount: communications.promisedAmount,
-        promisedDate: communications.promisedDate,
-        nextActionRequired: communications.nextActionRequired,
-        nextActionDate: communications.nextActionDate,
-        createdAt: communications.createdAt,
-      })
-      .from(communications)
-      .where(sql`${communications.collectionId} = ANY(${collectionIds})`)
-      .orderBy(desc(communications.createdAt));
+    const allComms = collectionIds.length > 0 
+      ? await db
+          .select({
+            collectionId: communications.collectionId,
+            id: communications.id,
+            type: communications.type,
+            content: communications.content,
+            outcome: communications.outcome,
+            promisedAmount: communications.promisedAmount,
+            promisedDate: communications.promisedDate,
+            nextActionRequired: communications.nextActionRequired,
+            nextActionDate: communications.nextActionDate,
+            createdAt: communications.createdAt,
+          })
+          .from(communications)
+          .where(inArray(communications.collectionId, collectionIds))
+          .orderBy(desc(communications.createdAt))
+      : [];
     
     // Group communications by collection and keep only the latest
     const latestCommsMap = new Map();
@@ -270,23 +272,25 @@ export class CollectionService {
     });
     
     // Batch fetch all approved payments for these collections
-    const allPayments = await db
-      .select({
-        collectionId: payments.collectionId,
-        amount: payments.amount,
-        paymentDate: payments.paymentDate,
-        paymentMode: payments.paymentMode,
-        status: payments.status,
-        createdAt: payments.createdAt,
-      })
-      .from(payments)
-      .where(
-        and(
-          sql`${payments.collectionId} = ANY(${collectionIds})`,
-          eq(payments.status, "approved" as any)
-        )
-      )
-      .orderBy(desc(payments.createdAt));
+    const allPayments = collectionIds.length > 0
+      ? await db
+          .select({
+            collectionId: payments.collectionId,
+            amount: payments.amount,
+            paymentDate: payments.paymentDate,
+            paymentMode: payments.paymentMode,
+            status: payments.status,
+            createdAt: payments.createdAt,
+          })
+          .from(payments)
+          .where(
+            and(
+              inArray(payments.collectionId, collectionIds),
+              eq(payments.status, "approved" as any)
+            )
+          )
+          .orderBy(desc(payments.createdAt))
+      : [];
     
     // Group payments by collection and keep only the latest
     const latestPaymentsMap = new Map();
