@@ -165,7 +165,7 @@ export default function Collections() {
         method: "POST",
         body: JSON.stringify({
           ...data,
-          amount: parseFloat(data.amount) * 100, // Convert to paise
+          amount: Math.round(parseFloat(data.amount) * 100), // Convert to paise and round to avoid floating point errors
           collectionId: selectedCollection.id,
         }),
       });

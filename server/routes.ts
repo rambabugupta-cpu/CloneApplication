@@ -497,8 +497,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Get user role to determine if auto-approval is needed
       const userRole = await storage.getUserRole(req.session.userId!);
       
+      // Ensure amount is properly converted to an integer (remove floating point errors)
       const paymentData = {
         ...req.body,
+        amount: Math.round(req.body.amount), // Round to nearest integer to fix floating point issues
         collectionId,
         recordedBy: req.session.userId,
         userRole: userRole?.role,
