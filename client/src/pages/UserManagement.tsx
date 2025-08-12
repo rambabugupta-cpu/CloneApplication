@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/hooks/use-user";
 import { queryClient } from "@/lib/queryClient";
@@ -20,7 +22,9 @@ import {
   UserX,
   IndianRupee,
   CreditCard,
-  Edit
+  Edit,
+  ArrowUpDown,
+  Filter
 } from "lucide-react";
 import { format } from "date-fns";
 
@@ -28,6 +32,16 @@ export default function UserManagement() {
   const { user } = useUser();
   const { toast } = useToast();
   const [processingId, setProcessingId] = useState<string | null>(null);
+  
+  // Filter states for each tab
+  const [paymentFilter, setPaymentFilter] = useState<"all" | "pending" | "approved">("all");
+  const [userFilter, setUserFilter] = useState<"all" | "pending" | "approved">("all");
+  const [editFilter, setEditFilter] = useState<"all" | "pending" | "approved">("all");
+  
+  // Sort states for each tab
+  const [paymentSort, setPaymentSort] = useState<"date" | "amount" | "customer">("date");
+  const [userSort, setUserSort] = useState<"date" | "name" | "email">("date");
+  const [editSort, setEditSort] = useState<"date" | "type" | "requestedBy">("date");
 
   // Check if user has permission
   if (user?.role !== "owner" && user?.role !== "admin") {
@@ -167,6 +181,87 @@ export default function UserManagement() {
     })}`;
   };
 
+  // Filter and sort payments data
+  const filteredAndSortedPayments = useMemo(() => {
+    let filtered = approvalsHistory.payments || [];
+    
+    // Apply filter
+    if (paymentFilter !== "all") {
+      filtered = filtered.filter((p: any) => 
+        paymentFilter === "pending" ? p.status === "pending" : p.status === "approved"
+      );
+    }
+    
+    // Apply sort
+    filtered = [...filtered].sort((a: any, b: any) => {
+      switch (paymentSort) {
+        case "amount":
+          return b.amount - a.amount;
+        case "customer":
+          return (a.customerName || "").localeCompare(b.customerName || "");
+        case "date":
+        default:
+          return new Date(b.createdAt || b.paymentDate).getTime() - new Date(a.createdAt || a.paymentDate).getTime();
+      }
+    });
+    
+    return filtered;
+  }, [approvalsHistory.payments, paymentFilter, paymentSort]);
+
+  // Filter and sort users data
+  const filteredAndSortedUsers = useMemo(() => {
+    let filtered = approvalsHistory.users || [];
+    
+    // Apply filter
+    if (userFilter !== "all") {
+      filtered = filtered.filter((u: any) => 
+        userFilter === "pending" ? u.status === "pending" : u.status === "active"
+      );
+    }
+    
+    // Apply sort
+    filtered = [...filtered].sort((a: any, b: any) => {
+      switch (userSort) {
+        case "name":
+          return (a.fullName || a.name || "").localeCompare(b.fullName || b.name || "");
+        case "email":
+          return (a.email || "").localeCompare(b.email || "");
+        case "date":
+        default:
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+    });
+    
+    return filtered;
+  }, [approvalsHistory.users, userFilter, userSort]);
+
+  // Filter and sort edits data
+  const filteredAndSortedEdits = useMemo(() => {
+    let filtered = approvalsHistory.edits || [];
+    
+    // Apply filter
+    if (editFilter !== "all") {
+      filtered = filtered.filter((e: any) => 
+        editFilter === "pending" ? e.status === "pending" : e.status === "approved"
+      );
+    }
+    
+    // Apply sort
+    filtered = [...filtered].sort((a: any, b: any) => {
+      switch (editSort) {
+        case "type":
+          return (a.entityType || "").localeCompare(b.entityType || "");
+        case "requestedBy":
+          return (a.requestedByName || "").localeCompare(b.requestedByName || "");
+        case "date":
+        default:
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      }
+    });
+    
+    return filtered;
+  }, [approvalsHistory.edits, editFilter, editSort]);
+
   if (isLoadingUsers || isLoadingPayments) {
     return (
       <div className="container mx-auto p-6">
@@ -202,17 +297,46 @@ export default function UserManagement() {
         </TabsList>
 
         <TabsContent value="payments" className="space-y-4">
-          <div className="mb-4 flex gap-2">
-            <Badge variant="secondary">Total: {approvalsHistory.payments?.length || 0}</Badge>
-            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-              Pending: {approvalsHistory.payments?.filter((p: any) => p.status === 'pending').length || 0}
-            </Badge>
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-              Approved: {approvalsHistory.payments?.filter((p: any) => p.status === 'approved').length || 0}
-            </Badge>
-            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
-              Rejected: {approvalsHistory.payments?.filter((p: any) => p.status === 'rejected').length || 0}
-            </Badge>
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex gap-2">
+              <Badge variant="secondary">Total: {approvalsHistory.payments?.length || 0}</Badge>
+              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                Pending: {approvalsHistory.payments?.filter((p: any) => p.status === 'pending').length || 0}
+              </Badge>
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                Approved: {approvalsHistory.payments?.filter((p: any) => p.status === 'approved').length || 0}
+              </Badge>
+              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                Rejected: {approvalsHistory.payments?.filter((p: any) => p.status === 'rejected').length || 0}
+              </Badge>
+            </div>
+            <div className="flex gap-2">
+              <ToggleGroup type="single" value={paymentFilter} onValueChange={(value) => value && setPaymentFilter(value as any)}>
+                <ToggleGroupItem value="all" size="sm">
+                  <Filter className="h-3 w-3 mr-1" />
+                  All
+                </ToggleGroupItem>
+                <ToggleGroupItem value="pending" size="sm">
+                  <Clock className="h-3 w-3 mr-1" />
+                  Pending
+                </ToggleGroupItem>
+                <ToggleGroupItem value="approved" size="sm">
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Approved
+                </ToggleGroupItem>
+              </ToggleGroup>
+              <Select value={paymentSort} onValueChange={(value: any) => setPaymentSort(value)}>
+                <SelectTrigger className="w-[140px]">
+                  <ArrowUpDown className="h-3 w-3 mr-1" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date">Sort by Date</SelectItem>
+                  <SelectItem value="amount">Sort by Amount</SelectItem>
+                  <SelectItem value="customer">Sort by Customer</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           {approvalsHistory.payments?.length === 0 ? (
             <Card>
@@ -242,7 +366,7 @@ export default function UserManagement() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {approvalsHistory.payments?.map((payment: any) => (
+                    {filteredAndSortedPayments.map((payment: any) => (
                       <TableRow key={payment.id}>
                         <TableCell className="font-semibold">
                           {formatCurrency(payment.amount)}
@@ -318,17 +442,46 @@ export default function UserManagement() {
         </TabsContent>
 
         <TabsContent value="users" className="space-y-4">
-          <div className="mb-4 flex gap-2">
-            <Badge variant="secondary">Total: {approvalsHistory.users?.length || 0}</Badge>
-            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-              Pending: {approvalsHistory.users?.filter((u: any) => u.status === 'pending').length || 0}
-            </Badge>
-            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-              Active: {approvalsHistory.users?.filter((u: any) => u.status === 'active').length || 0}
-            </Badge>
-            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
-              Rejected: {approvalsHistory.users?.filter((u: any) => u.status === 'rejected').length || 0}
-            </Badge>
+          <div className="flex justify-between items-center mb-4">
+            <div className="flex gap-2">
+              <Badge variant="secondary">Total: {approvalsHistory.users?.length || 0}</Badge>
+              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                Pending: {approvalsHistory.users?.filter((u: any) => u.status === 'pending').length || 0}
+              </Badge>
+              <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                Active: {approvalsHistory.users?.filter((u: any) => u.status === 'active').length || 0}
+              </Badge>
+              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                Rejected: {approvalsHistory.users?.filter((u: any) => u.status === 'rejected').length || 0}
+              </Badge>
+            </div>
+            <div className="flex gap-2">
+              <ToggleGroup type="single" value={userFilter} onValueChange={(value) => value && setUserFilter(value as any)}>
+                <ToggleGroupItem value="all" size="sm">
+                  <Filter className="h-3 w-3 mr-1" />
+                  All
+                </ToggleGroupItem>
+                <ToggleGroupItem value="pending" size="sm">
+                  <Clock className="h-3 w-3 mr-1" />
+                  Pending
+                </ToggleGroupItem>
+                <ToggleGroupItem value="approved" size="sm">
+                  <UserCheck className="h-3 w-3 mr-1" />
+                  Active
+                </ToggleGroupItem>
+              </ToggleGroup>
+              <Select value={userSort} onValueChange={(value: any) => setUserSort(value)}>
+                <SelectTrigger className="w-[140px]">
+                  <ArrowUpDown className="h-3 w-3 mr-1" />
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date">Sort by Date</SelectItem>
+                  <SelectItem value="name">Sort by Name</SelectItem>
+                  <SelectItem value="email">Sort by Email</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           {approvalsHistory.users?.length === 0 ? (
             <Card>
@@ -357,7 +510,7 @@ export default function UserManagement() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {approvalsHistory.users?.map((pendingUser: any) => (
+                    {filteredAndSortedUsers.map((pendingUser: any) => (
                       <TableRow key={pendingUser.id}>
                         <TableCell className="font-medium">
                           {pendingUser.fullName || pendingUser.name || "No Name"}
@@ -432,17 +585,46 @@ export default function UserManagement() {
         </TabsContent>
 
     <TabsContent value="edits" className="space-y-4">
-      <div className="mb-4 flex gap-2">
-        <Badge variant="secondary">Total: {approvalsHistory.edits?.length || 0}</Badge>
-        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-          Pending: {approvalsHistory.edits?.filter((e: any) => e.status === 'pending').length || 0}
-        </Badge>
-        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-          Approved: {approvalsHistory.edits?.filter((e: any) => e.status === 'approved').length || 0}
-        </Badge>
-        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
-          Rejected: {approvalsHistory.edits?.filter((e: any) => e.status === 'rejected').length || 0}
-        </Badge>
+      <div className="flex justify-between items-center mb-4">
+        <div className="flex gap-2">
+          <Badge variant="secondary">Total: {approvalsHistory.edits?.length || 0}</Badge>
+          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+            Pending: {approvalsHistory.edits?.filter((e: any) => e.status === 'pending').length || 0}
+          </Badge>
+          <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+            Approved: {approvalsHistory.edits?.filter((e: any) => e.status === 'approved').length || 0}
+          </Badge>
+          <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+            Rejected: {approvalsHistory.edits?.filter((e: any) => e.status === 'rejected').length || 0}
+          </Badge>
+        </div>
+        <div className="flex gap-2">
+          <ToggleGroup type="single" value={editFilter} onValueChange={(value) => value && setEditFilter(value as any)}>
+            <ToggleGroupItem value="all" size="sm">
+              <Filter className="h-3 w-3 mr-1" />
+              All
+            </ToggleGroupItem>
+            <ToggleGroupItem value="pending" size="sm">
+              <Clock className="h-3 w-3 mr-1" />
+              Pending
+            </ToggleGroupItem>
+            <ToggleGroupItem value="approved" size="sm">
+              <CheckCircle className="h-3 w-3 mr-1" />
+              Approved
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <Select value={editSort} onValueChange={(value: any) => setEditSort(value)}>
+            <SelectTrigger className="w-[140px]">
+              <ArrowUpDown className="h-3 w-3 mr-1" />
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="date">Sort by Date</SelectItem>
+              <SelectItem value="type">Sort by Type</SelectItem>
+              <SelectItem value="requestedBy">Sort by Requester</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
       </div>
       {approvalsHistory.edits?.length === 0 ? (
         <Card>
@@ -470,7 +652,7 @@ export default function UserManagement() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {approvalsHistory.edits?.map((editRequest: any) => (
+                {filteredAndSortedEdits.map((editRequest: any) => (
                   <TableRow key={editRequest.id}>
                     <TableCell>
                       <Badge variant={editRequest.entityType === 'payment' ? 'default' : 'secondary'}>
