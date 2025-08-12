@@ -5,7 +5,7 @@ import session from "express-session";
 import pgSimple from "connect-pg-simple";
 import { db, pool } from "./db";
 import cors from "cors";
-import { insertUserSchema, insertCollectionSchema, insertPaymentSchema, insertCommunicationSchema, payments, communications } from "@shared/schema";
+import { insertUserSchema, insertCollectionSchema, insertPaymentSchema, insertCommunicationSchema, payments, communications, paymentEdits, communicationEdits } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import multer from "multer";
 import xlsx from "xlsx";
@@ -984,7 +984,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check user role - owner and admin can delete directly
       const user = await storage.getUserRole(userId);
       if (user?.role === 'owner' || user?.role === 'admin') {
-        // Direct deletion
+        // Direct deletion - first delete related payment_edits to avoid foreign key constraint
+        await db.delete(paymentEdits).where(eq(paymentEdits.paymentId, paymentId));
         await db.delete(payments).where(eq(payments.id, paymentId));
         res.status(200).json({ message: "Payment deleted successfully" });
       } else {
@@ -1007,7 +1008,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Check user role - owner and admin can delete directly
       const user = await storage.getUserRole(userId);
       if (user?.role === 'owner' || user?.role === 'admin') {
-        // Direct deletion
+        // Direct deletion - first delete related communication_edits to avoid foreign key constraint
+        await db.delete(communicationEdits).where(eq(communicationEdits.communicationId, communicationId));
         await db.delete(communications).where(eq(communications.id, communicationId));
         res.status(200).json({ message: "Communication deleted successfully" });
       } else {
