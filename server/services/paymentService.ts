@@ -18,6 +18,23 @@ export class PaymentService {
   private notificationService = new NotificationService();
   private auditService = new AuditService();
 
+  // Optimized method to get payment statistics using database aggregation
+  async getPaymentStatsOptimized() {
+    const [stats] = await db.select({
+      totalCollected: sql<number>`COALESCE(SUM(CASE WHEN status = 'approved' THEN amount ELSE 0 END), 0)`,
+      pendingCount: sql<number>`COUNT(CASE WHEN status = 'pending_approval' THEN 1 END)`,
+      approvedCount: sql<number>`COUNT(CASE WHEN status = 'approved' THEN 1 END)`,
+      rejectedCount: sql<number>`COUNT(CASE WHEN status = 'rejected' THEN 1 END)`,
+    }).from(payments);
+    
+    return {
+      totalCollected: Number(stats.totalCollected) || 0,
+      pendingCount: Number(stats.pendingCount) || 0,
+      approvedCount: Number(stats.approvedCount) || 0,
+      rejectedCount: Number(stats.rejectedCount) || 0,
+    };
+  }
+
   async recordPayment(data: InsertPayment & { recordedBy: string; userRole?: string }): Promise<Payment> {
     try {
       // Check if payment should be auto-approved (admin/owner)
@@ -180,14 +197,7 @@ export class PaymentService {
     return rejected;
   }
 
-  async getPaymentById(id: string): Promise<Payment | undefined> {
-    const [payment] = await db.select()
-      .from(payments)
-      .where(eq(payments.id, id))
-      .limit(1);
-    
-    return payment;
-  }
+
 
   async getPaymentsByCollection(collectionId: string): Promise<Payment[]> {
     return await db.select()
@@ -243,35 +253,46 @@ export class PaymentService {
     pendingCount: number;
     rejectedCount: number;
   }> {
-    let query = db.select({
+    const conditions = [];
+    if (period) {
+      conditions.push(
+        sql`${payments.paymentDate} >= ${period.fromDate.toISOString()}`,
+        sql`${payments.paymentDate} <= ${period.toDate.toISOString()}`
+      );
+    }
+
+    const [stats] = await db.select({
       totalCollected: sql<number>`COALESCE(SUM(CASE WHEN ${payments.status} = 'approved' THEN ${payments.amount} ELSE 0 END), 0)`,
       approvedCount: sql<number>`COUNT(*) FILTER (WHERE ${payments.status} = 'approved')`,
       pendingCount: sql<number>`COUNT(*) FILTER (WHERE ${payments.status} = 'pending_approval')`,
       rejectedCount: sql<number>`COUNT(*) FILTER (WHERE ${payments.status} = 'rejected')`,
-    }).from(payments);
-
-    if (period) {
-      query = query.where(
-        and(
-          sql`${payments.paymentDate} >= ${period.fromDate.toISOString()}`,
-          sql`${payments.paymentDate} <= ${period.toDate.toISOString()}`
-        )
-      );
-    }
-
-    const stats = await query;
+    }).from(payments)
+    .where(conditions.length > 0 ? and(...conditions) : undefined);
     
-    return stats[0] || {
-      totalCollected: 0,
-      approvedCount: 0,
-      pendingCount: 0,
-      rejectedCount: 0,
+    return {
+      totalCollected: Number(stats?.totalCollected) || 0,
+      approvedCount: Number(stats?.approvedCount) || 0,
+      pendingCount: Number(stats?.pendingCount) || 0,
+      rejectedCount: Number(stats?.rejectedCount) || 0,
     };
   }
 
-  async getAllPayments(): Promise<Payment[]> {
+  async getAllPayments(limit: number = 100, offset: number = 0): Promise<Payment[]> {
     return await db.select()
       .from(payments)
-      .orderBy(desc(payments.createdAt));
+      .orderBy(desc(payments.createdAt))
+      .limit(limit)
+      .offset(offset);
+  }
+
+  async getPaymentById(id: string): Promise<Payment | null> {
+    const [payment] = await db.select()
+      .from(payments)
+      .where(eq(payments.id, id))
+      .limit(1);
+    return payment || null;
   }
 }
+
+// Export the service instance for use in routes
+export const paymentService = new PaymentService();

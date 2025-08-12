@@ -60,15 +60,8 @@ export class DatabaseStorage {
   }
 
   async getPaymentStats() {
-    // Use paymentService.getAllPayments() instead of getPayments()
-    const payments = await paymentService.getAllPayments();
-    const pending = payments.filter((p: any) => p.status === 'pending');
-    const approved = payments.filter((p: any) => p.status === 'approved');
-    return {
-      totalCollected: approved.reduce((sum: number, p: any) => sum + (p.amount || 0), 0),
-      pendingCount: pending.length,
-      approvedCount: approved.length
-    };
+    // Use optimized database aggregation instead of fetching all payments
+    return await paymentService.getPaymentStatsOptimized();
   }
 
   async getAllCustomers() {
@@ -136,11 +129,10 @@ export class DatabaseStorage {
     return await editService.getAllEditRequests();
   }
 
-  // Customer operations for Excel import
+  // Customer operations for Excel import - optimized to query directly
   async getCustomerByName(name: string) {
     if (!name) return null;
-    const customers = await customerService.getAllCustomers();
-    return customers.find((c: any) => c.primaryContactName && c.primaryContactName.toLowerCase() === name.toLowerCase()) || null;
+    return await customerService.getCustomerByName(name);
   }
 
   async createCustomer(data: any) {

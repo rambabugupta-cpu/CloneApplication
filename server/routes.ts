@@ -1143,8 +1143,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get payment details by ID
   app.get("/api/payments/:id", requireAuth, async (req, res) => {
     try {
-      const paymentServiceModule = await import("./services/paymentService");
-      const payment = await paymentServiceModule.getPaymentById(req.params.id);
+      const { paymentService } = await import("./services/paymentService");
+      const payment = await paymentService.getPaymentById(req.params.id);
       
       if (!payment) {
         return res.status(404).json({ error: "Payment not found" });

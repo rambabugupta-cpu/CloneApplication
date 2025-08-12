@@ -1,11 +1,15 @@
 import { db } from "../db";
 import { customers } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 export class CustomerService {
-  async getAllCustomers() {
+  async getAllCustomers(limit: number = 100, offset: number = 0) {
     try {
-      const result = await db.select().from(customers);
+      const result = await db.select()
+        .from(customers)
+        .limit(limit)
+        .offset(offset)
+        .orderBy(customers.primaryContactName);
       return result;
     } catch (error) {
       console.error("Error fetching customers:", error);
@@ -49,8 +53,12 @@ export class CustomerService {
   async getCustomerByName(name: string) {
     try {
       if (!name) return null;
-      const allCustomers = await db.select().from(customers);
-      return allCustomers.find(c => c.primaryContactName?.toLowerCase() === name.toLowerCase()) || null;
+      // Use database query with case-insensitive search
+      const [customer] = await db.select()
+        .from(customers)
+        .where(sql`LOWER(${customers.primaryContactName}) = LOWER(${name})`)
+        .limit(1);
+      return customer || null;
     } catch (error) {
       console.error("Error fetching customer by name:", error);
       return null;

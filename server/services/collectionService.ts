@@ -231,59 +231,93 @@ export class CollectionService {
       query = query.where(and(...conditions)) as any;
     }
 
-    const results = await query.orderBy(desc(collections.dueDate));
+    const results = await query.orderBy(desc(collections.dueDate)).limit(100); // Add pagination limit
     
     // Import communications table
     const { communications } = await import("@shared/schema");
     
-    // Fetch latest communication and payment for each collection
-    const collectionsWithComms = await Promise.all(results.map(async (collection) => {
-      // Get the latest communication for this collection
-      const latestComm = await db
-        .select({
-          id: communications.id,
-          type: communications.type,
-          content: communications.content,
-          outcome: communications.outcome,
-          promisedAmount: communications.promisedAmount,
-          promisedDate: communications.promisedDate,
-          nextActionRequired: communications.nextActionRequired,
-          nextActionDate: communications.nextActionDate,
-          createdAt: communications.createdAt,
-        })
-        .from(communications)
-        .where(eq(communications.collectionId, collection.id))
-        .orderBy(desc(communications.createdAt))
-        .limit(1);
-      
-      // Get the latest payment for this collection
-      const latestPayment = await db
-        .select({
-          amount: payments.amount,
-          paymentDate: payments.paymentDate,
-          paymentMode: payments.paymentMode,
-          status: payments.status,
-          createdAt: payments.createdAt,
-        })
-        .from(payments)
-        .where(
-          and(
-            eq(payments.collectionId, collection.id),
-            eq(payments.status, "approved" as any)
-          )
+    // Optimize: Batch fetch latest communications and payments for all collections at once
+    const collectionIds = results.map(r => r.id);
+    
+    if (collectionIds.length === 0) {
+      return results;
+    }
+    
+    // Get latest communication for each collection using a subquery
+    const latestCommsQuery = db
+      .select({
+        collectionId: communications.collectionId,
+        id: communications.id,
+        type: communications.type,
+        content: communications.content,
+        outcome: communications.outcome,
+        promisedAmount: communications.promisedAmount,
+        promisedDate: communications.promisedDate,
+        nextActionRequired: communications.nextActionRequired,
+        nextActionDate: communications.nextActionDate,
+        createdAt: communications.createdAt,
+        rn: sql<number>`ROW_NUMBER() OVER (PARTITION BY ${communications.collectionId} ORDER BY ${communications.createdAt} DESC)`,
+      })
+      .from(communications)
+      .where(sql`${communications.collectionId} = ANY(${collectionIds})`)
+      .as('latest_comms_sub');
+    
+    const latestComms = await db
+      .select()
+      .from(latestCommsQuery)
+      .where(sql`rn = 1`);
+    
+    // Create map for efficient lookup
+    const latestCommsMap = new Map();
+    latestComms.forEach((comm: any) => {
+      latestCommsMap.set(comm.collectionId, comm);
+    });
+    
+    // Get latest approved payment for each collection using a subquery
+    const latestPaymentsQuery = db
+      .select({
+        collectionId: payments.collectionId,
+        amount: payments.amount,
+        paymentDate: payments.paymentDate,
+        paymentMode: payments.paymentMode,
+        status: payments.status,
+        createdAt: payments.createdAt,
+        rn: sql<number>`ROW_NUMBER() OVER (PARTITION BY ${payments.collectionId} ORDER BY ${payments.createdAt} DESC)`,
+      })
+      .from(payments)
+      .where(
+        and(
+          sql`${payments.collectionId} = ANY(${collectionIds})`,
+          eq(payments.status, "approved" as any)
         )
-        .orderBy(desc(payments.createdAt))
-        .limit(1);
+      )
+      .as('latest_payments_sub');
+    
+    const latestPayments = await db
+      .select()
+      .from(latestPaymentsQuery)
+      .where(sql`rn = 1`);
+    
+    // Create map for efficient lookup
+    const latestPaymentsMap = new Map();
+    latestPayments.forEach((payment: any) => {
+      latestPaymentsMap.set(payment.collectionId, payment);
+    });
+    
+    // Combine results efficiently
+    const collectionsWithComms = results.map(collection => {
+      const latestComm = latestCommsMap.get(collection.id);
+      const latestPayment = latestPaymentsMap.get(collection.id);
       
       return {
         ...collection,
-        latestCommunication: latestComm[0] || null,
-        lastPaymentDate: latestPayment[0]?.paymentDate || null,
-        lastPaymentAmount: latestPayment[0]?.amount || 0,
+        latestCommunication: latestComm || null,
+        lastPaymentDate: latestPayment?.paymentDate || null,
+        lastPaymentAmount: latestPayment?.amount || 0,
         // Update nextFollowupDate from communication if available
-        nextFollowupDate: latestComm[0]?.nextActionDate || collection.nextFollowupDate,
+        nextFollowupDate: latestComm?.nextActionDate || collection.nextFollowupDate,
       };
-    }));
+    });
     
     return collectionsWithComms;
   }
