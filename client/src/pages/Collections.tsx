@@ -304,8 +304,8 @@ export default function Collections() {
     return new Intl.NumberFormat('en-IN', {
       style: 'currency',
       currency: 'INR',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
     }).format(amount / 100);
   };
 
@@ -643,7 +643,10 @@ export default function Collections() {
                               </div>
                               {collection.latestCommunication.promisedAmount && (
                                 <div className="text-green-600 dark:text-green-400 text-xs">
-                                  ₹{(collection.latestCommunication.promisedAmount / 100).toLocaleString('en-IN')}
+                                  ₹{(collection.latestCommunication.promisedAmount / 100).toLocaleString('en-IN', {
+                                    minimumFractionDigits: 2,
+                                    maximumFractionDigits: 2
+                                  })}
                                 </div>
                               )}
                             </div>
@@ -1142,7 +1145,10 @@ export default function Collections() {
                     <div className="flex justify-between">
                       <span className="font-medium">Promised Amount:</span>
                       <span className="text-green-600">
-                        ₹{(popupData.latestCommunication.promisedAmount / 100).toLocaleString('en-IN')}
+                        ₹{(popupData.latestCommunication.promisedAmount / 100).toLocaleString('en-IN', {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2
+                        })}
                       </span>
                     </div>
                   )}
@@ -1212,8 +1218,14 @@ export default function Collections() {
               <div>
                 <span className="text-sm text-gray-600">Outstanding Amount at the time of uploading excel</span>
                 <p className="font-bold text-lg text-red-600">
-                  ₹{popupData?.originalAmount ? (popupData.originalAmount / 100).toLocaleString('en-IN') : 
-                    popupData?.outstandingAmount ? ((popupData.outstandingAmount + (popupData.paidAmount || 0)) / 100).toLocaleString('en-IN') : '0'}
+                  ₹{popupData?.originalAmount ? (popupData.originalAmount / 100).toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  }) : 
+                    popupData?.outstandingAmount ? ((popupData.outstandingAmount + (popupData.paidAmount || 0)) / 100).toLocaleString('en-IN', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    }) : '0.00'}
                 </p>
               </div>
 
@@ -1235,7 +1247,10 @@ export default function Collections() {
                 <span className="text-sm text-gray-600">Total Last Payment Amount</span>
                 <div className="flex items-center justify-between">
                   <p className="font-bold text-lg text-green-600">
-                    ₹{popupData?.paidAmount ? (popupData.paidAmount / 100).toLocaleString('en-IN') : '0'}
+                    ₹{popupData?.paidAmount ? (popupData.paidAmount / 100).toLocaleString('en-IN', {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2
+                    }) : '0.00'}
                   </p>
                   <Button
                     size="sm"
@@ -1263,7 +1278,10 @@ export default function Collections() {
               <div className="pt-2 border-t">
                 <span className="text-sm text-gray-600">Balance Amount</span>
                 <p className="font-bold text-lg text-orange-600">
-                  ₹{popupData?.outstandingAmount ? (popupData.outstandingAmount / 100).toLocaleString('en-IN') : '0'}
+                  ₹{popupData?.outstandingAmount ? (popupData.outstandingAmount / 100).toLocaleString('en-IN', {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2
+                  }) : '0.00'}
                 </p>
               </div>
             </div>
