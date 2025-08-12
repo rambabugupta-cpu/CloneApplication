@@ -317,7 +317,7 @@ export default function Collections() {
           : "Your delete request has been submitted for approval.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
-      setShowPaymentDetails(false);
+      setShowLastPaymentPopup(false);
     },
     onError: (error: any) => {
       toast({
@@ -344,7 +344,7 @@ export default function Collections() {
           : "Your delete request has been submitted for approval.",
       });
       queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
-      setShowCommunicationDetails(false);
+      setShowNextFollowupPopup(false);
     },
     onError: (error: any) => {
       toast({
@@ -1574,6 +1574,20 @@ export default function Collections() {
                 <div className="flex gap-2">
                   <Button type="submit" className="flex-1">
                     Submit Edit Request
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    onClick={() => {
+                      setSelectedPaymentForDelete(selectedPaymentForEdit);
+                      setShowDeletePaymentDialog(true);
+                      setShowEditPaymentDialog(false);
+                      setDeleteReason("");
+                    }}
+                    className="flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
                   </Button>
                   <Button
                     type="button"
