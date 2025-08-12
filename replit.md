@@ -130,7 +130,26 @@ A comprehensive collection management system designed for RBG Infra Developers L
 - SQL injection protection via Drizzle ORM
 - Input validation with Zod schemas
 
+## Deployment Configuration
+
+### Production Setup
+- **Build Command**: `npm run build` (compiles frontend and backend)
+- **Run Command**: `npm run start` (runs in production mode)
+- **Environment**: Production mode detected via `NODE_ENV=production`
+- **Port**: Application serves on port 5000 with static file serving
+
+### Deployment Instructions
+To deploy the application:
+1. Navigate to Deployments tab in Replit workspace
+2. Configure deployment commands:
+   - Build Command: `npm run build`
+   - Run Command: `npm run start`
+3. Deploy using Autoscale deployment target
+
+The application is production-ready with optimized builds and proper environment handling.
+
 ## Recent Changes
+- **2025-08-12**: Fixed deployment configuration issue - provided instructions for setting production build and run commands through Deployments interface
 - **2025-08-11**: Fixed payment recording issue by removing database transactions (neon-http driver doesn't support them)
 - **2025-08-11**: Added Excel import batch tracking to display upload details in payment popups
 - **2025-08-11**: Fixed pending payments query error by properly joining with customers table
