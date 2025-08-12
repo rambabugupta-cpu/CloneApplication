@@ -1,10 +1,7 @@
-import { neon, Pool, neonConfig } from '@neondatabase/serverless';
+import { neon, neonConfig } from '@neondatabase/serverless';
 import { drizzle } from 'drizzle-orm/neon-http';
-import ws from 'ws';
+import { Pool } from 'pg';
 import * as schema from "@shared/schema";
-
-// Configure WebSocket for Pool connection
-neonConfig.webSocketConstructor = ws;
 
 if (!process.env.DATABASE_URL) {
   throw new Error(
@@ -12,9 +9,15 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Use HTTP connection for Drizzle ORM
+// Use HTTP connection for Drizzle ORM (no WebSocket required)
 const sql = neon(process.env.DATABASE_URL);
 export const db = drizzle({ client: sql, schema });
 
-// Export pool for session store with WebSocket support
-export const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+// Use standard pg Pool for session store to avoid WebSocket issues
+export const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  max: 10,
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000,
+});
