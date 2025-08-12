@@ -7,7 +7,7 @@ A comprehensive collection management system designed for RBG Infra Developers L
 - **Frontend**: React with TypeScript, Tailwind CSS, shadcn/ui components
 - **Backend**: Express.js with TypeScript, Service Layer Architecture
 - **Database**: PostgreSQL with Drizzle ORM
-- **Authentication**: Session-based authentication with bcrypt password hashing
+- **Authentication**: Replit Auth (OpenID Connect) with PostgreSQL session storage
 - **Real-time**: WebSocket support for live updates
 - **Security**: Role-based access control, audit logging, approval workflows
 - **Integration**: Excel import with validation and matching
@@ -35,10 +35,10 @@ A comprehensive collection management system designed for RBG Infra Developers L
 - Escalation levels for overdue collections
 
 ### Security & Compliance
-- High-level security with bcrypt password hashing
+- High-level security with Replit Auth (OpenID Connect)
 - Complete audit trail for all actions
 - Role-based access control (RBAC)
-- Session-based authentication
+- Secure session-based authentication with PostgreSQL storage
 - IP tracking and rate limiting
 
 ### Reporting & Analytics
@@ -50,7 +50,8 @@ A comprehensive collection management system designed for RBG Infra Developers L
 - Promise vs actual payment tracking
 
 ## Database Schema
-- `users`: Core user authentication data (UUID, email, fullName, password_hash, role, status)
+- `users`: Core user authentication data (varchar ID, email, firstName, lastName, profileImageUrl, role, status)
+- `sessions`: PostgreSQL session store for Replit Auth
 - `customers`: Detailed customer information with accounting codes, GST, contact details
 - `collections`: Outstanding amounts to be collected (invoices, amounts, status, aging)
 - `payments`: Payment tracking with approval workflow (pending/approved/rejected)
@@ -66,29 +67,16 @@ A comprehensive collection management system designed for RBG Infra Developers L
 **To**: Replit PostgreSQL with Drizzle
 
 ### Changes Made:
-- Replaced Supabase authentication with custom session-based auth
+- Replaced custom authentication with Replit Auth (OpenID Connect)
 - Migrated database from Supabase to Replit PostgreSQL
-- Updated all client-side code to use REST API instead of Supabase client
-- Implemented secure password hashing with bcrypt
-- Created admin user seeding functionality
-- Removed all Supabase dependencies and configurations
+- Updated all client-side code to use REST API with Replit Auth
+- Implemented Replit Auth with PostgreSQL session storage
+- Updated user schema to support Replit user IDs (varchar instead of UUID)
+- Removed custom authentication dependencies and configurations
 
 ## Demo User Credentials
-**Admin User:**
-- Email: admin@example.com
-- Password: admin123
-
-**Employee User:**
-- Email: employee@example.com  
-- Password: employee123
-
-**Customer User:**
-- Email: customer@example.com
-- Password: customer123
-
-**Pending User (for approval demo):**
-- Email: pending@example.com
-- Password: pending123
+Authentication is now handled through Replit Auth (OpenID Connect). Users sign in using their Replit accounts.
+Demo users will be created automatically when they first sign in through Replit Auth.
 
 ## Development Setup
 - Run `npm run dev` to start the development server
@@ -96,11 +84,11 @@ A comprehensive collection management system designed for RBG Infra Developers L
 - Admin user is automatically seeded on first startup
 
 ## API Endpoints
-**Authentication:**
-- `POST /api/auth/signup` - User registration
-- `POST /api/auth/signin` - User login
-- `POST /api/auth/signout` - User logout
-- `GET /api/auth/me` - Get current user info
+**Authentication (Replit Auth):**
+- `GET /api/login` - Start Replit Auth login flow
+- `GET /api/callback` - Replit Auth callback handler
+- `GET /api/logout` - End Replit Auth session
+- `GET /api/auth/user` - Get current authenticated user info
 
 **User Management:**
 - `GET /api/users/pending` - Get pending user approvals (admin only)
@@ -124,8 +112,8 @@ A comprehensive collection management system designed for RBG Infra Developers L
 - `GET /api/dashboard/stats` - Get dashboard statistics and trends
 
 ## Security Features
-- Password hashing with bcrypt (12 rounds)
-- Session-based authentication
+- Replit Auth (OpenID Connect) integration
+- PostgreSQL session storage with secure cookies
 - Role-based authorization middleware
 - SQL injection protection via Drizzle ORM
 - Input validation with Zod schemas
@@ -149,6 +137,13 @@ To deploy the application:
 The application is production-ready with optimized builds and proper environment handling.
 
 ## Recent Changes
+- **2025-08-12**: Successfully migrated authentication system from custom session-based auth to Replit Auth (OpenID Connect)
+  - Updated database schema: changed user IDs from UUID to varchar for Replit user compatibility
+  - Replaced custom authentication routes with Replit Auth integration 
+  - Updated client-side components to use Replit Auth hooks (useAuth)
+  - Created Landing page for unauthenticated users and Home page for authenticated users
+  - Implemented Replit Auth middleware for protected routes
+  - Database schema successfully migrated with sessions table for Replit Auth
 - **2025-08-12**: Fixed deployment configuration issue - provided instructions for setting production build and run commands through Deployments interface
 - **2025-08-11**: Fixed payment recording issue by removing database transactions (neon-http driver doesn't support them)
 - **2025-08-11**: Added Excel import batch tracking to display upload details in payment popups

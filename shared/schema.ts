@@ -11,9 +11,10 @@ import {
   pgEnum,
   decimal,
   date,
-  index
+  index,
+  varchar
 } from "drizzle-orm/pg-core";
-import { relations } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
@@ -62,29 +63,41 @@ export const approvalStatusEnum = pgEnum("approval_status", [
 // CORE TABLES
 // ============================================
 
-// Users table - handles authentication and basic info
+// Session storage table for Replit Auth
+export const sessions = pgTable(
+  "sessions",
+  {
+    sid: varchar("sid").primaryKey(),
+    sess: jsonb("sess").notNull(),
+    expire: timestamp("expire").notNull(),
+  },
+  (table) => [index("IDX_session_expire").on(table.expire)],
+);
+
+// Users table - handles authentication and basic info for Replit Auth
 export const users = pgTable("users", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  email: text("email").notNull().unique(),
-  passwordHash: text("password_hash").notNull(),
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  email: varchar("email").unique(),
+  firstName: varchar("first_name"),
+  lastName: varchar("last_name"),
+  profileImageUrl: varchar("profile_image_url"),
   role: userRoleEnum("role").notNull().default("customer"),
   status: userStatusEnum("status").notNull().default("active"),
   
-  // Profile info
-  fullName: text("full_name").notNull(),
+  // Profile info - computed from firstName + lastName or can be overridden
+  fullName: text("full_name"),
   phoneNumber: text("phone_number"),
   alternatePhone: text("alternate_phone"),
   
   // For staff members
   employeeCode: text("employee_code"),
   department: text("department"),
-  reportingTo: uuid("reporting_to"),
+  reportingTo: varchar("reporting_to"),
   
   // Metadata
   lastLoginAt: timestamp("last_login_at"),
-  passwordChangedAt: timestamp("password_changed_at"),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
 }, (table) => ({
   emailIdx: index("users_email_idx").on(table.email),
   roleIdx: index("users_role_idx").on(table.role),
@@ -94,7 +107,7 @@ export const users = pgTable("users", {
 // Customers table - detailed customer information
 export const customers = pgTable("customers", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").references(() => users.id),
+  userId: varchar("user_id").references(() => users.id),
   
   // Customer identification
   customerCode: text("customer_code").notNull().unique(), // From Tally
@@ -123,7 +136,7 @@ export const customers = pgTable("customers", {
   businessType: text("business_type"),
   
   // Assignment
-  assignedTo: uuid("assigned_to").references(() => users.id),
+  assignedTo: varchar("assigned_to").references(() => users.id),
   
   // Metadata
   isActive: boolean("is_active").default(true).notNull(),
@@ -162,7 +175,7 @@ export const collections = pgTable("collections", {
   nextFollowupDate: timestamp("next_followup_date"),
   
   // Assignment and escalation
-  assignedTo: uuid("assigned_to").references(() => users.id),
+  assignedTo: varchar("assigned_to").references(() => users.id),
   escalationLevel: integer("escalation_level").default(0),
   
   // Dispute tracking
@@ -198,8 +211,8 @@ export const payments = pgTable("payments", {
   
   // Approval workflow
   status: paymentStatusEnum("status").default("pending_approval").notNull(),
-  recordedBy: uuid("recorded_by").notNull().references(() => users.id),
-  approvedBy: uuid("approved_by").references(() => users.id),
+  recordedBy: varchar("recorded_by").notNull().references(() => users.id),
+  approvedBy: varchar("approved_by").references(() => users.id),
   approvedAt: timestamp("approved_at"),
   rejectionReason: text("rejection_reason"),
   
@@ -237,7 +250,7 @@ export const communications = pgTable("communications", {
   nextActionDate: date("next_action_date"),
   
   // User tracking
-  createdBy: uuid("created_by").notNull().references(() => users.id),
+  createdBy: varchar("created_by").notNull().references(() => users.id),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
 }, (table) => ({
@@ -264,7 +277,7 @@ export const importBatches = pgTable("import_batches", {
   errors: jsonb("errors"),
   
   // User tracking
-  importedBy: uuid("imported_by").notNull().references(() => users.id),
+  importedBy: varchar("imported_by").notNull().references(() => users.id),
   
   createdAt: timestamp("created_at").defaultNow().notNull(),
   completedAt: timestamp("completed_at"),
@@ -292,11 +305,11 @@ export const paymentEdits = pgTable("payment_edits", {
   
   // Edit details
   editReason: text("edit_reason").notNull(),
-  editedBy: uuid("edited_by").notNull().references(() => users.id),
+  editedBy: varchar("edited_by").notNull().references(() => users.id),
   
   // Approval workflow
   status: text("status").default("pending").notNull(), // pending, approved, rejected, auto_approved
-  approvedBy: uuid("approved_by").references(() => users.id),
+  approvedBy: varchar("approved_by").references(() => users.id),
   approvedAt: timestamp("approved_at"),
   rejectionReason: text("rejection_reason"),
   
@@ -333,11 +346,11 @@ export const communicationEdits = pgTable("communication_edits", {
   
   // Edit details
   editReason: text("edit_reason").notNull(),
-  editedBy: uuid("edited_by").notNull().references(() => users.id),
+  editedBy: varchar("edited_by").notNull().references(() => users.id),
   
   // Approval workflow
   status: text("status").default("pending").notNull(), // pending, approved, rejected, auto_approved
-  approvedBy: uuid("approved_by").references(() => users.id),
+  approvedBy: varchar("approved_by").references(() => users.id),
   approvedAt: timestamp("approved_at"),
   rejectionReason: text("rejection_reason"),
   
@@ -354,7 +367,7 @@ export const communicationEdits = pgTable("communication_edits", {
 // Notifications table - system notifications
 export const notifications = pgTable("notifications", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
   
   type: notificationTypeEnum("type").notNull(),
   title: text("title").notNull(),
@@ -377,7 +390,7 @@ export const notifications = pgTable("notifications", {
 // Audit logs table - track all important actions
 export const auditLogs = pgTable("audit_logs", {
   id: uuid("id").primaryKey().defaultRandom(),
-  userId: uuid("user_id").notNull().references(() => users.id),
+  userId: varchar("user_id").notNull().references(() => users.id),
   
   action: text("action").notNull(), // login, payment_approved, collection_updated, etc
   entityType: text("entity_type"), // collection, payment, customer, etc
@@ -478,9 +491,10 @@ export type AuditLog = typeof auditLogs.$inferSelect;
 // ============================================
 
 export const insertUserSchema = createInsertSchema(users, {
-  email: z.string().email("Invalid email format"),
-  passwordHash: z.string().min(6, "Password must be at least 6 characters"),
-  fullName: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email format").optional(),
+  firstName: z.string().min(1, "First name is required").optional(),
+  lastName: z.string().min(1, "Last name is required").optional(),
+  fullName: z.string().min(2, "Name must be at least 2 characters").optional(),
   phoneNumber: z.string().regex(/^[+]?[0-9]{10,15}$/, "Invalid phone number").optional(),
 }).omit({
   id: true,
@@ -558,3 +572,9 @@ export type InsertCommunication = z.infer<typeof insertCommunicationSchema>;
 export type InsertImportBatch = z.infer<typeof insertImportBatchSchema>;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type InsertAuditLog = z.infer<typeof insertAuditLogSchema>;
+
+// ============================================
+// REPLIT AUTH SPECIFIC TYPES
+// ============================================
+
+export type UpsertUser = typeof users.$inferInsert;

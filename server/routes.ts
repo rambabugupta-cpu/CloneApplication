@@ -1,9 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import session from "express-session";
-import pgSimple from "connect-pg-simple";
-import { pool } from "./db";
+import { setupAuth, isAuthenticated } from "./replitAuth";
 import cors from "cors";
 import { insertUserSchema, insertCollectionSchema, insertPaymentSchema, insertCommunicationSchema } from "@shared/schema";
 import multer from "multer";
@@ -51,138 +49,27 @@ export async function registerRoutes(app: Express): Promise<Server> {
     allowedHeaders: ['Content-Type', 'Authorization'],
   }));
 
-  // Create PostgreSQL session store
-  const PostgreSQLStore = pgSimple(session);
-  
-  // Configure session middleware with PostgreSQL store
-  app.use(session({
-    store: new PostgreSQLStore({
-      pool: pool,
-      tableName: 'session', // Use the default table name
-    }),
-    secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
-    resave: false,
-    saveUninitialized: false,
-    name: 'sessionid', // Change name to avoid conflicts
-    rolling: true, // Reset expiry on each request
-    cookie: {
-      secure: false, // Set to true in production with HTTPS
-      httpOnly: true,
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-      sameSite: 'lax', // Important for modern browsers
-      path: '/', // Ensure cookie path is correct
-    },
-  }));
+  // Auth middleware
+  await setupAuth(app);
 
-  // Auth middleware to check if user is authenticated
-  const requireAuth = (req: any, res: any, next: any) => {
-    if (!req.session.userId) {
-      return res.status(401).json({ error: "Authentication required" });
-    }
-    next();
-  };
-
-  // Auth Routes
-  app.post("/api/auth/signup", async (req, res) => {
+  // Auth routes
+  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const { email, password, name } = req.body;
-      
-      // Validate input
-      const userData = insertUserSchema.parse({
-        email: email.toLowerCase(),
-        name,
-        passwordHash: password,
-      });
-
-      // Check if user already exists
-      const existingUser = await storage.getUserByEmail(userData.email);
-      if (existingUser) {
-        return res.status(400).json({ error: "User already exists" });
-      }
-
-      // Create user
-      const user = await storage.createUser({
-        ...userData,
-        fullName: name,
-        role: 'customer'
-      });
-
-      res.json({ 
-        message: "User created successfully. Account pending approval.",
-        user: { id: user.id, email: user.email, name: user.fullName }
-      });
-    } catch (error: any) {
-      console.error("Signup error:", error);
-      res.status(400).json({ error: error.message || "Failed to create user" });
-    }
-  });
-
-  app.post("/api/auth/signin", async (req, res) => {
-    try {
-      const { email, password } = req.body;
-      
-      if (!email || !password) {
-        return res.status(400).json({ error: "Email and password required" });
-      }
-
-      const user = await storage.validateUser(email.toLowerCase(), password);
-      if (!user) {
-        return res.status(401).json({ error: "Invalid credentials" });
-      }
-
-      // Create session
-      req.session.userId = user.id;
-      
-      res.json({
-        user: { 
-          id: user.id, 
-          email: user.email, 
-          fullName: user.fullName,
-          role: user.role || 'customer'
-        },
-        message: "Signed in successfully"
-      });
-    } catch (error: any) {
-      console.error("Signin error:", error);
-      res.status(500).json({ error: "Failed to sign in" });
-    }
-  });
-
-  app.post("/api/auth/signout", (req, res) => {
-    req.session.destroy((err) => {
-      if (err) {
-        return res.status(500).json({ error: "Failed to sign out" });
-      }
-      res.clearCookie('connect.sid');
-      res.json({ message: "Signed out successfully" });
-    });
-  });
-
-  app.get("/api/auth/me", requireAuth, async (req, res) => {
-    try {
-      const user = await storage.getUserById(req.session.userId!);
-      if (!user) {
-        return res.status(404).json({ error: "User not found" });
-      }
-
-      res.json({
-        id: user.id,
-        email: user.email,
-        fullName: user.fullName,
-        name: user.fullName,
-        role: user.role || 'customer'
-      });
-    } catch (error: any) {
-      console.error("Get user error:", error);
-      res.status(500).json({ error: "Failed to get user data" });
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
+      res.json(user);
+    } catch (error) {
+      console.error("Error fetching user:", error);
+      res.status(500).json({ message: "Failed to fetch user" });
     }
   });
 
   // User Management Routes (Admin only)
-  app.get("/api/users/pending", requireAuth, async (req, res) => {
+  app.get("/api/users/pending", isAuthenticated, async (req: any, res) => {
     try {
       // Check if user is admin
-      const user = await storage.getUserById(req.session.userId!);
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
       if (user?.role !== "admin" && user?.role !== "owner") {
         return res.status(403).json({ error: "Admin access required" });
       }
@@ -196,10 +83,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get pending payments endpoint
-  app.get("/api/payments/pending", requireAuth, async (req, res) => {
+  app.get("/api/payments/pending", isAuthenticated, async (req: any, res) => {
     try {
       // Check if user is admin or owner
-      const user = await storage.getUserById(req.session.userId!);
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
       if (user?.role !== "admin" && user?.role !== "owner") {
         return res.status(403).json({ error: "Admin/Owner access required" });
       }
@@ -213,22 +101,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Approve/Reject payment endpoint
-  app.post("/api/payments/:paymentId/approve", requireAuth, async (req, res) => {
+  app.post("/api/payments/:paymentId/approve", isAuthenticated, async (req: any, res) => {
     try {
       const { paymentId } = req.params;
       const { status } = req.body; // 'approved' or 'rejected'
       
       // Check if user is admin or owner
-      const user = await storage.getUserById(req.session.userId!);
+      const userId = req.user.claims.sub;
+      const user = await storage.getUser(userId);
       if (user?.role !== "admin" && user?.role !== "owner") {
         return res.status(403).json({ error: "Admin/Owner access required" });
       }
 
       if (status === 'approved') {
-        const payment = await storage.approvePayment(paymentId, req.session.userId!);
+        const payment = await storage.approvePayment(paymentId, userId);
         res.json(payment);
       } else if (status === 'rejected') {
-        const payment = await storage.rejectPayment(paymentId, req.session.userId!);
+        const payment = await storage.rejectPayment(paymentId, userId);
         res.json(payment);
       } else {
         res.status(400).json({ error: "Invalid status. Must be 'approved' or 'rejected'" });
@@ -240,10 +129,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get user statistics
-  app.get("/api/users/statistics", requireAuth, async (req, res) => {
+  app.get("/api/users/statistics", isAuthenticated, async (req: any, res) => {
     try {
       // Check if user is admin or owner
-      const currentUser = await storage.getUserById(req.session.userId!);
+      const currentUser = await storage.getUser(req.user.claims.sub!);
       if (currentUser?.role !== "admin" && currentUser?.role !== "owner") {
         return res.status(403).json({ error: "Admin access required" });
       }
@@ -264,10 +153,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all approvals history
-  app.get("/api/approvals/history", requireAuth, async (req, res) => {
+  app.get("/api/approvals/history", isAuthenticated, async (req: any, res) => {
     try {
       // Check if user is admin or owner
-      const currentUser = await storage.getUserById(req.session.userId!);
+      const currentUser = await storage.getUser(req.user.claims.sub!);
       if (currentUser?.role !== "admin" && currentUser?.role !== "owner") {
         return res.status(403).json({ error: "Admin access required" });
       }
@@ -293,12 +182,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get all users by role
-  app.get("/api/users", requireAuth, async (req, res) => {
+  app.get("/api/users", isAuthenticated, async (req: any, res) => {
     try {
       const { role } = req.query;
       
       // Check if user is admin or owner
-      const currentUser = await storage.getUserById(req.session.userId!);
+      const currentUser = await storage.getUser(req.user.claims.sub!);
       if (currentUser?.role !== "admin" && currentUser?.role !== "owner") {
         return res.status(403).json({ error: "Admin access required" });
       }
@@ -316,13 +205,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/users/:userId/approve", requireAuth, async (req, res) => {
+  app.post("/api/users/:userId/approve", isAuthenticated, async (req: any, res) => {
     try {
       const { userId } = req.params;
       const { status } = req.body; // 'approved' or 'rejected'
       
       // Check if user is admin
-      const userRole = await storage.getUserRole(req.session.userId!);
+      const userRole = await storage.getUserRole(req.user.claims.sub!);
       if (userRole?.role !== "admin") {
         return res.status(403).json({ error: "Admin access required" });
       }
@@ -346,12 +235,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Email endpoint (placeholder for future email service integration)
-  app.post("/api/send-approval-email", requireAuth, async (req, res) => {
+  app.post("/api/send-approval-email", isAuthenticated, async (req: any, res) => {
     try {
       const { email, name, status } = req.body;
       
       // Check if user is admin
-      const userRole = await storage.getUserRole(req.session.userId!);
+      const userRole = await storage.getUserRole(req.user.claims.sub!);
       if (userRole?.role !== "admin") {
         return res.status(403).json({ error: "Admin access required" });
       }
@@ -367,7 +256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard Stats Route
-  app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
+  app.get("/api/dashboard/stats", isAuthenticated, async (req: any, res) => {
     try {
       const collections = await storage.getCollections();
       const users = await storage.getUsers();
@@ -430,7 +319,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Collections API Routes
-  app.get("/api/collections", requireAuth, async (req, res) => {
+  app.get("/api/collections", isAuthenticated, async (req: any, res) => {
     try {
       const collections = await storage.getCollections();
       res.json(collections);
@@ -439,7 +328,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/collections/:id", requireAuth, async (req, res) => {
+  app.get("/api/collections/:id", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const collection = await storage.getCollection(id);
@@ -452,7 +341,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/collections", requireAuth, async (req, res) => {
+  app.post("/api/collections", isAuthenticated, async (req: any, res) => {
     try {
       const collectionData = insertCollectionSchema.parse(req.body);
       const collection = await storage.createCollection(collectionData);
@@ -465,7 +354,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.put("/api/collections/:id", requireAuth, async (req, res) => {
+  app.put("/api/collections/:id", isAuthenticated, async (req: any, res) => {
     try {
       const id = parseInt(req.params.id);
       const updates = req.body;
@@ -480,7 +369,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Payments API Routes
-  app.get("/api/collections/:id/payments", requireAuth, async (req, res) => {
+  app.get("/api/collections/:id/payments", isAuthenticated, async (req: any, res) => {
     try {
       const collectionId = req.params.id; // Keep as UUID string
       const payments = await storage.getPaymentsByCollection(collectionId);
@@ -490,17 +379,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/collections/:id/payments", requireAuth, async (req, res) => {
+  app.post("/api/collections/:id/payments", isAuthenticated, async (req: any, res) => {
     try {
       const collectionId = req.params.id; // Keep as UUID string
       
       // Get user role to determine if auto-approval is needed
-      const userRole = await storage.getUserRole(req.session.userId!);
+      const userRole = await storage.getUserRole(req.user.claims.sub!);
       
       const paymentData = {
         ...req.body,
         collectionId,
-        recordedBy: req.session.userId,
+        recordedBy: req.user.claims.sub,
         userRole: userRole?.role,
         paymentDate: req.body.paymentDate || new Date().toISOString().split('T')[0], // Add default date if not provided
       };
@@ -519,7 +408,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Communications API Routes
-  app.get("/api/collections/:id/communications", requireAuth, async (req, res) => {
+  app.get("/api/collections/:id/communications", isAuthenticated, async (req: any, res) => {
     try {
       const collectionId = req.params.id; // Keep as UUID string
       const communications = await storage.getCommunicationsByCollection(collectionId);
@@ -529,13 +418,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/collections/:id/communications", requireAuth, async (req, res) => {
+  app.post("/api/collections/:id/communications", isAuthenticated, async (req: any, res) => {
     try {
       const collectionId = req.params.id; // Keep as string for UUID
       console.log("=== Communication Request ===");
       console.log("Request body:", JSON.stringify(req.body, null, 2));
       console.log("Collection ID:", collectionId);
-      console.log("User ID:", req.session.userId);
+      console.log("User ID:", req.user.claims.sub);
       
       // Validate required fields
       if (!req.body.type) {
@@ -547,14 +436,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!req.body.content) {
         return res.status(400).json({ error: "Communication content is required" });
       }
-      if (!req.session.userId) {
+      if (!req.user.claims.sub) {
         return res.status(400).json({ error: "User session not found" });
       }
       
       const communicationData = {
         ...req.body,
         collectionId,
-        createdBy: req.session.userId, // Changed from userId to createdBy
+        createdBy: req.user.claims.sub, // Changed from userId to createdBy
       };
       
       console.log("Final communication data:", JSON.stringify(communicationData, null, 2));
@@ -575,7 +464,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dispute API Routes
-  app.post("/api/collections/:id/dispute", requireAuth, async (req, res) => {
+  app.post("/api/collections/:id/dispute", isAuthenticated, async (req: any, res) => {
     try {
       const collectionId = req.params.id;
       const { reason } = req.body;
@@ -584,11 +473,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Dispute reason is required" });
       }
       
-      if (!req.session.userId) {
+      if (!req.user.claims.sub) {
         return res.status(401).json({ error: "User not authenticated" });
       }
       
-      await storage.raiseDispute(collectionId, reason, req.session.userId);
+      await storage.raiseDispute(collectionId, reason, req.user.claims.sub);
       res.status(200).json({ message: "Dispute raised successfully" });
     } catch (error: any) {
       res.status(500).json({ error: error.message });
@@ -596,7 +485,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Dashboard API Routes
-  app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
+  app.get("/api/dashboard/stats", isAuthenticated, async (req: any, res) => {
     try {
       const stats = await storage.getDashboardStats();
       
@@ -642,7 +531,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Enhanced Analytics APIs
-  app.get("/api/dashboard/monthly-trends", requireAuth, async (req, res) => {
+  app.get("/api/dashboard/monthly-trends", isAuthenticated, async (req: any, res) => {
     try {
       // Mock monthly trend data - can be enhanced with real data later
       const monthlyTrends = [
@@ -659,7 +548,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/dashboard/collection-performance", requireAuth, async (req, res) => {
+  app.get("/api/dashboard/collection-performance", isAuthenticated, async (req: any, res) => {
     try {
       const stats = await storage.getDashboardStats();
       
@@ -689,7 +578,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/dashboard/aging-analysis", requireAuth, async (req, res) => {
+  app.get("/api/dashboard/aging-analysis", isAuthenticated, async (req: any, res) => {
     try {
       const stats = await storage.getDashboardStats();
       
@@ -727,7 +616,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Excel Import API Routes  
-  app.post("/api/import/excel", requireAuth, upload.single('file'), async (req, res) => {
+  app.post("/api/import/excel", isAuthenticated, upload.single('file'), async (req: any, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ message: "No file uploaded", error: "Please select a file to upload" });
@@ -880,7 +769,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
             originalAmount: Math.round(amount * 100), // Convert to paise
             outstandingAmount: Math.round(amount * 100), // Convert to paise
             status: 'pending',
-            createdBy: req.session.userId!,
+            createdBy: req.user.claims.sub!,
           });
           
           importedCollections.push(collection);
@@ -912,10 +801,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post("/api/excel/:fileId/import", requireAuth, async (req, res) => {
+  app.post("/api/excel/:fileId/import", isAuthenticated, async (req: any, res) => {
     try {
       const fileId = parseInt(req.params.fileId);
-      const userId = req.session.userId!;
+      const userId = req.user.claims.sub!;
 
       // For now, return a placeholder response until method is implemented
       res.json({
@@ -928,7 +817,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.get("/api/excel/:fileId/preview", requireAuth, async (req, res) => {
+  app.get("/api/excel/:fileId/preview", isAuthenticated, async (req: any, res) => {
     try {
       const fileId = parseInt(req.params.fileId);
       // For now, return a placeholder response until method is implemented
@@ -946,10 +835,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const { editService } = await import("./services/editService");
   
   // Create payment edit request
-  app.post("/api/payments/:id/edit", requireAuth, async (req, res) => {
+  app.post("/api/payments/:id/edit", isAuthenticated, async (req: any, res) => {
     try {
       const paymentId = req.params.id;
-      const userId = req.session.userId!;
+      const userId = req.user.claims.sub!;
       
       const edit = await editService.createPaymentEdit(paymentId, req.body, userId);
       res.json(edit);
@@ -959,10 +848,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Create communication edit request
-  app.post("/api/communications/:id/edit", requireAuth, async (req, res) => {
+  app.post("/api/communications/:id/edit", isAuthenticated, async (req: any, res) => {
     try {
       const communicationId = req.params.id;
-      const userId = req.session.userId!;
+      const userId = req.user.claims.sub!;
       
       const edit = await editService.createCommunicationEdit(communicationId, req.body, userId);
       res.json(edit);
@@ -972,7 +861,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get all pending edit requests (combined)
-  app.get("/api/edits/pending", requireAuth, async (req, res) => {
+  app.get("/api/edits/pending", isAuthenticated, async (req: any, res) => {
     try {
       const pendingEdits = await editService.getPendingEditRequests();
       res.json(pendingEdits);
@@ -982,7 +871,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get pending payment edits
-  app.get("/api/edits/payments/pending", requireAuth, async (req, res) => {
+  app.get("/api/edits/payments/pending", isAuthenticated, async (req: any, res) => {
     try {
       const pendingEdits = await editService.getPendingPaymentEdits();
       res.json(pendingEdits);
@@ -992,7 +881,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get pending communication edits
-  app.get("/api/edits/communications/pending", requireAuth, async (req, res) => {
+  app.get("/api/edits/communications/pending", isAuthenticated, async (req: any, res) => {
     try {
       const pendingEdits = await editService.getPendingCommunicationEdits();
       res.json(pendingEdits);
@@ -1002,11 +891,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Approve payment edit
-  app.post("/api/edits/payments/:id/approve", requireAuth, async (req, res) => {
+  app.post("/api/edits/payments/:id/approve", isAuthenticated, async (req: any, res) => {
     try {
       const editId = req.params.id;
-      const userId = req.session.userId!;
-      const user = await storage.getUserById(userId);
+      const userId = req.user.claims.sub!;
+      const user = await storage.getUser(userId);
       
       // Only admin and owner can approve
       if (user?.role !== 'admin' && user?.role !== 'owner') {
@@ -1021,11 +910,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Approve communication edit
-  app.post("/api/edits/communications/:id/approve", requireAuth, async (req, res) => {
+  app.post("/api/edits/communications/:id/approve", isAuthenticated, async (req: any, res) => {
     try {
       const editId = req.params.id;
-      const userId = req.session.userId!;
-      const user = await storage.getUserById(userId);
+      const userId = req.user.claims.sub!;
+      const user = await storage.getUser(userId);
       
       // Only admin and owner can approve
       if (user?.role !== 'admin' && user?.role !== 'owner') {
@@ -1040,11 +929,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Reject payment edit
-  app.post("/api/edits/payments/:id/reject", requireAuth, async (req, res) => {
+  app.post("/api/edits/payments/:id/reject", isAuthenticated, async (req: any, res) => {
     try {
       const editId = req.params.id;
-      const userId = req.session.userId!;
-      const user = await storage.getUserById(userId);
+      const userId = req.user.claims.sub!;
+      const user = await storage.getUser(userId);
       const { reason } = req.body;
       
       // Only admin and owner can reject
@@ -1060,11 +949,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Reject communication edit  
-  app.post("/api/edits/communications/:id/reject", requireAuth, async (req, res) => {
+  app.post("/api/edits/communications/:id/reject", isAuthenticated, async (req: any, res) => {
     try {
       const editId = req.params.id;
-      const userId = req.session.userId!;
-      const user = await storage.getUserById(userId);
+      const userId = req.user.claims.sub!;
+      const user = await storage.getUser(userId);
       const { reason } = req.body;
       
       // Only admin and owner can reject
@@ -1080,7 +969,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Process auto-approvals (should be called periodically)
-  app.post("/api/edits/process-auto-approvals", requireAuth, async (req, res) => {
+  app.post("/api/edits/process-auto-approvals", isAuthenticated, async (req: any, res) => {
     try {
       await editService.processAutoApprovals();
       res.json({ message: "Auto-approvals processed successfully" });
@@ -1090,7 +979,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get payment details by ID
-  app.get("/api/payments/:id", requireAuth, async (req, res) => {
+  app.get("/api/payments/:id", isAuthenticated, async (req: any, res) => {
     try {
       const paymentServiceModule = await import("./services/paymentService");
       const payment = await paymentServiceModule.getPaymentById(req.params.id);
@@ -1106,7 +995,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Get communication by ID
-  app.get("/api/communications/:id", requireAuth, async (req, res) => {
+  app.get("/api/communications/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { communicationService } = await import("./services/communicationService");
       const communication = await communicationService.getCommunicationById(req.params.id);

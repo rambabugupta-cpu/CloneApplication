@@ -10,6 +10,9 @@ import { AuditService } from "./services/auditService";
 import { ExcelImportService } from "./services/excelImportService";
 import { communicationService } from "./services/communicationService";
 import { EditService } from "./services/editService";
+import { users, type User, type UpsertUser } from "@shared/schema";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
 
 // Export service instances for backward compatibility
 export const authService = new AuthService();
@@ -21,10 +24,42 @@ export const auditService = new AuditService();
 export const excelImportService = new ExcelImportService();
 export const editService = new EditService();
 
+// Interface for storage operations
+export interface IStorage {
+  // User operations for Replit Auth
+  getUser(id: string): Promise<User | undefined>;
+  upsertUser(user: UpsertUser): Promise<User>;
+  // Legacy operations
+  getUserById(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
+}
+
 // Legacy storage interface - minimal implementation for compatibility
-export class DatabaseStorage {
+export class DatabaseStorage implements IStorage {
+  // Replit Auth required methods
+  async getUser(id: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<User> {
+    const [user] = await db
+      .insert(users)
+      .values(userData)
+      .onConflictDoUpdate({
+        target: users.id,
+        set: {
+          ...userData,
+          updatedAt: new Date(),
+        },
+      })
+      .returning();
+    return user;
+  }
+
+  // Legacy methods
   async getUserById(id: string) {
-    return await authService.getUserById(id);
+    return await this.getUser(id);
   }
 
   async getUserByEmail(email: string) {
