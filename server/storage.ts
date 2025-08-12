@@ -76,6 +76,10 @@ export class DatabaseStorage {
     return await collectionService.searchCollections({});
   }
 
+  async searchCollections(filters: any) {
+    return await collectionService.searchCollections(filters);
+  }
+
   async getCollection(id: number) {
     // Convert number to string for new UUID-based system
     return await collectionService.getCollectionById(String(id));

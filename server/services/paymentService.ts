@@ -8,7 +8,7 @@ import {
   type Payment, 
   type InsertPayment 
 } from "@shared/schema";
-import { eq, and, desc, sql, alias } from "drizzle-orm";
+import { eq, and, desc, sql } from "drizzle-orm";
 import { CollectionService } from "./collectionService";
 import { NotificationService } from "./notificationService";
 import { AuditService } from "./auditService";
@@ -279,8 +279,6 @@ export class PaymentService {
 
   async getAllPayments(limit: number = 100, offset: number = 0): Promise<any[]> {
     const { customers } = await import("@shared/schema");
-    const recordedByUsers = alias(users, "recordedByUsers");
-    const approvedByUsers = alias(users, "approvedByUsers");
     
     return await db.select({
       id: payments.id,
@@ -297,15 +295,12 @@ export class PaymentService {
       createdAt: payments.createdAt,
       collectionInvoice: collections.invoiceNumber,
       customerName: customers.primaryContactName,
-      recordedByName: recordedByUsers.fullName,
-      approvedByName: approvedByUsers.fullName,
-      rejectedByName: approvedByUsers.fullName, // Same as approvedBy for rejected payments
+      // Note: User names would need separate queries or a different approach
     })
     .from(payments)
     .leftJoin(collections, eq(payments.collectionId, collections.id))
     .leftJoin(customers, eq(collections.customerId, customers.id))
-    .leftJoin(recordedByUsers, eq(payments.recordedBy, recordedByUsers.id))
-    .leftJoin(approvedByUsers, eq(payments.approvedBy, approvedByUsers.id))
+
     .orderBy(desc(payments.createdAt))
     .limit(limit)
     .offset(offset);
