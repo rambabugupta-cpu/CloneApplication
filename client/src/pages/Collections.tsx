@@ -54,6 +54,7 @@ import {
   MessageSquare,
   DollarSign,
   Edit,
+  Trash2,
   FileText,
   ClipboardList,
   MessageCircle,
@@ -109,6 +110,11 @@ export default function Collections() {
   const [showEditCommunicationDialog, setShowEditCommunicationDialog] = useState(false);
   const [selectedPaymentForEdit, setSelectedPaymentForEdit] = useState<any>(null);
   const [selectedCommunicationForEdit, setSelectedCommunicationForEdit] = useState<any>(null);
+  const [showDeletePaymentDialog, setShowDeletePaymentDialog] = useState(false);
+  const [showDeleteCommunicationDialog, setShowDeleteCommunicationDialog] = useState(false);
+  const [selectedPaymentForDelete, setSelectedPaymentForDelete] = useState<any>(null);
+  const [selectedCommunicationForDelete, setSelectedCommunicationForDelete] = useState<any>(null);
+  const [deleteReason, setDeleteReason] = useState("");
 
   const { data: collections, isLoading } = useQuery({
     queryKey: ["/api/collections", statusFilter, searchTerm],
@@ -290,6 +296,60 @@ export default function Collections() {
       toast({
         title: "Error",
         description: error.message || "Failed to submit edit request",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete Payment Mutation
+  const deletePayment = useMutation({
+    mutationFn: async (data: { paymentId: string; deleteReason: string }) => {
+      return apiRequest(`/api/payments/${data.paymentId}/delete`, {
+        method: "POST",
+        body: JSON.stringify({ deleteReason: data.deleteReason }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Delete Request Submitted",
+        description: user?.role === 'owner' || user?.role === 'admin' 
+          ? "Payment deleted successfully." 
+          : "Your delete request has been submitted for approval.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      setShowPaymentDetails(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete payment",
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Delete Communication Mutation
+  const deleteCommunication = useMutation({
+    mutationFn: async (data: { communicationId: string; deleteReason: string }) => {
+      return apiRequest(`/api/communications/${data.communicationId}/delete`, {
+        method: "POST",
+        body: JSON.stringify({ deleteReason: data.deleteReason }),
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: "Delete Request Submitted",
+        description: user?.role === 'owner' || user?.role === 'admin' 
+          ? "Communication deleted successfully." 
+          : "Your delete request has been submitted for approval.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      setShowCommunicationDetails(false);
+    },
+    onError: (error: any) => {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete communication",
         variant: "destructive",
       });
     },
@@ -1177,17 +1237,31 @@ export default function Collections() {
             )}
             <div className="flex gap-2">
               {popupData?.latestCommunication && user?.role !== 'customer' && (
-                <Button 
-                  onClick={() => {
-                    setSelectedCommunicationForEdit(popupData.latestCommunication);
-                    setShowEditCommunicationDialog(true);
-                  }}
-                  variant="outline"
-                  className="flex-1 flex items-center gap-2"
-                >
-                  <Edit className="h-4 w-4" />
-                  Edit Followup
-                </Button>
+                <>
+                  <Button 
+                    onClick={() => {
+                      setSelectedCommunicationForEdit(popupData.latestCommunication);
+                      setShowEditCommunicationDialog(true);
+                    }}
+                    variant="outline"
+                    className="flex-1 flex items-center gap-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Edit
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      setSelectedCommunicationForDelete(popupData.latestCommunication);
+                      setShowDeleteCommunicationDialog(true);
+                      setDeleteReason("");
+                    }}
+                    variant="destructive"
+                    className="flex-1 flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </Button>
+                </>
               )}
               <Button 
                 onClick={() => setShowNextFollowupPopup(false)}
@@ -1288,33 +1362,47 @@ export default function Collections() {
 
             <div className="flex gap-2">
               {popupData?.lastPaymentId && (
-                <Button 
-                  onClick={async () => {
-                    try {
-                      // Fetch the latest payment details
-                      if (popupData?.id) {
-                        const payments = await apiRequest(`/api/collections/${popupData.id}/payments`, {
-                          method: 'GET',
-                        });
-                        const latestPayment = payments
-                          .filter((p: any) => p.status === 'approved')
-                          .sort((a: any, b: any) => new Date(b.paymentDate || b.createdAt).getTime() - new Date(a.paymentDate || a.createdAt).getTime())[0];
-                        
-                        if (latestPayment) {
-                          setSelectedPaymentForEdit(latestPayment);
-                          setShowEditPaymentDialog(true);
+                <>
+                  <Button 
+                    onClick={async () => {
+                      try {
+                        // Fetch the latest payment details
+                        if (popupData?.id) {
+                          const payments = await apiRequest(`/api/collections/${popupData.id}/payments`, {
+                            method: 'GET',
+                          });
+                          const latestPayment = payments
+                            .filter((p: any) => p.status === 'approved')
+                            .sort((a: any, b: any) => new Date(b.paymentDate || b.createdAt).getTime() - new Date(a.paymentDate || a.createdAt).getTime())[0];
+                          
+                          if (latestPayment) {
+                            setSelectedPaymentForEdit(latestPayment);
+                            setShowEditPaymentDialog(true);
+                          }
                         }
+                      } catch (error) {
+                        console.error('Failed to fetch payment for editing:', error);
                       }
-                    } catch (error) {
-                      console.error('Failed to fetch payment for editing:', error);
-                    }
-                  }}
-                  variant="outline"
-                  className="flex-1 flex items-center gap-2"
-                >
-                  <Edit className="h-4 w-4" />
-                  Edit Payment
-                </Button>
+                    }}
+                    variant="outline"
+                    className="flex-1 flex items-center gap-2"
+                  >
+                    <Edit className="h-4 w-4" />
+                    Edit
+                  </Button>
+                  <Button 
+                    onClick={() => {
+                      setSelectedPaymentForDelete({ id: popupData.lastPaymentId });
+                      setShowDeletePaymentDialog(true);
+                      setDeleteReason("");
+                    }}
+                    variant="destructive"
+                    className="flex-1 flex items-center gap-2"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    Delete
+                  </Button>
+                </>
               )}
               <Button 
                 onClick={() => setShowLastPaymentPopup(false)}
@@ -1764,6 +1852,132 @@ export default function Collections() {
             >
               Close
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Payment Confirmation Dialog */}
+      <Dialog open={showDeletePaymentDialog} onOpenChange={setShowDeletePaymentDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Payment</DialogTitle>
+            <DialogDescription>
+              {user?.role === 'owner' || user?.role === 'admin' 
+                ? "This action will permanently delete this payment. This cannot be undone."
+                : "Your delete request will be submitted for approval."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="delete-reason-payment">
+                Reason for Deletion {user?.role === 'owner' || user?.role === 'admin' ? '(Optional)' : '(Required)'}
+              </Label>
+              <textarea
+                id="delete-reason-payment"
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                className="w-full min-h-[80px] p-2 border rounded text-black dark:text-white bg-white dark:bg-gray-800"
+                placeholder="Please provide a reason for deleting this payment..."
+                required={user?.role !== 'owner' && user?.role !== 'admin'}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  if ((user?.role !== 'owner' && user?.role !== 'admin') && !deleteReason) {
+                    toast({
+                      title: "Error",
+                      description: "Please provide a reason for the delete request",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  deletePayment.mutate({
+                    paymentId: selectedPaymentForDelete?.id,
+                    deleteReason: deleteReason || "Deleted by admin/owner",
+                  });
+                  setShowDeletePaymentDialog(false);
+                }}
+                variant="destructive"
+                className="flex-1"
+              >
+                {user?.role === 'owner' || user?.role === 'admin' ? 'Delete Payment' : 'Submit Delete Request'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeletePaymentDialog(false);
+                  setSelectedPaymentForDelete(null);
+                  setDeleteReason("");
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Communication Confirmation Dialog */}
+      <Dialog open={showDeleteCommunicationDialog} onOpenChange={setShowDeleteCommunicationDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Communication</DialogTitle>
+            <DialogDescription>
+              {user?.role === 'owner' || user?.role === 'admin' 
+                ? "This action will permanently delete this communication. This cannot be undone."
+                : "Your delete request will be submitted for approval."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="delete-reason-communication">
+                Reason for Deletion {user?.role === 'owner' || user?.role === 'admin' ? '(Optional)' : '(Required)'}
+              </Label>
+              <textarea
+                id="delete-reason-communication"
+                value={deleteReason}
+                onChange={(e) => setDeleteReason(e.target.value)}
+                className="w-full min-h-[80px] p-2 border rounded text-black dark:text-white bg-white dark:bg-gray-800"
+                placeholder="Please provide a reason for deleting this communication..."
+                required={user?.role !== 'owner' && user?.role !== 'admin'}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                onClick={() => {
+                  if ((user?.role !== 'owner' && user?.role !== 'admin') && !deleteReason) {
+                    toast({
+                      title: "Error",
+                      description: "Please provide a reason for the delete request",
+                      variant: "destructive",
+                    });
+                    return;
+                  }
+                  deleteCommunication.mutate({
+                    communicationId: selectedCommunicationForDelete?.id,
+                    deleteReason: deleteReason || "Deleted by admin/owner",
+                  });
+                  setShowDeleteCommunicationDialog(false);
+                }}
+                variant="destructive"
+                className="flex-1"
+              >
+                {user?.role === 'owner' || user?.role === 'admin' ? 'Delete Communication' : 'Submit Delete Request'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowDeleteCommunicationDialog(false);
+                  setSelectedCommunicationForDelete(null);
+                  setDeleteReason("");
+                }}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

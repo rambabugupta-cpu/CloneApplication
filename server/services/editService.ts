@@ -30,6 +30,7 @@ export class EditService {
 
     const [edit] = await db.insert(paymentEdits).values({
       paymentId,
+      operationType: "edit",
       originalAmount: originalPayment.amount,
       originalPaymentDate: originalPayment.paymentDate,
       originalPaymentMode: originalPayment.paymentMode,
@@ -45,6 +46,38 @@ export class EditService {
     }).returning();
 
     return edit;
+  }
+
+  // Create payment delete request
+  async createPaymentDelete(paymentId: string, deleteReason: string, userId: string): Promise<PaymentEdit> {
+    // Get original payment data
+    const [originalPayment] = await db.select()
+      .from(payments)
+      .where(eq(payments.id, paymentId))
+      .limit(1);
+    
+    if (!originalPayment) {
+      throw new Error("Payment not found");
+    }
+
+    // Calculate auto-approval time (30 minutes from now)
+    const autoApprovalAt = new Date();
+    autoApprovalAt.setMinutes(autoApprovalAt.getMinutes() + 30);
+
+    const [deleteRequest] = await db.insert(paymentEdits).values({
+      paymentId,
+      operationType: "delete",
+      originalAmount: originalPayment.amount,
+      originalPaymentDate: originalPayment.paymentDate,
+      originalPaymentMode: originalPayment.paymentMode,
+      originalReferenceNumber: originalPayment.referenceNumber,
+      editReason: deleteReason,
+      editedBy: userId,
+      autoApprovalAt,
+      status: "pending"
+    }).returning();
+
+    return deleteRequest;
   }
 
   // Create communication edit request
@@ -65,6 +98,7 @@ export class EditService {
 
     const [edit] = await db.insert(communicationEdits).values({
       communicationId,
+      operationType: "edit",
       originalContent: originalComm.content,
       originalOutcome: originalComm.outcome,
       originalPromisedAmount: originalComm.promisedAmount,
@@ -86,7 +120,41 @@ export class EditService {
     return edit;
   }
 
-  // Approve payment edit
+  // Create communication delete request
+  async createCommunicationDelete(communicationId: string, deleteReason: string, userId: string): Promise<CommunicationEdit> {
+    // Get original communication data
+    const [originalComm] = await db.select()
+      .from(communications)
+      .where(eq(communications.id, communicationId))
+      .limit(1);
+    
+    if (!originalComm) {
+      throw new Error("Communication not found");
+    }
+
+    // Calculate auto-approval time (30 minutes from now)
+    const autoApprovalAt = new Date();
+    autoApprovalAt.setMinutes(autoApprovalAt.getMinutes() + 30);
+
+    const [deleteRequest] = await db.insert(communicationEdits).values({
+      communicationId,
+      operationType: "delete",
+      originalContent: originalComm.content,
+      originalOutcome: originalComm.outcome,
+      originalPromisedAmount: originalComm.promisedAmount,
+      originalPromisedDate: originalComm.promisedDate,
+      originalNextActionRequired: originalComm.nextActionRequired,
+      originalNextActionDate: originalComm.nextActionDate,
+      editReason: deleteReason,
+      editedBy: userId,
+      autoApprovalAt,
+      status: "pending"
+    }).returning();
+
+    return deleteRequest;
+  }
+
+  // Approve payment edit/delete
   async approvePaymentEdit(editId: string, approverId: string): Promise<void> {
     const [edit] = await db.select()
       .from(paymentEdits)
@@ -97,16 +165,22 @@ export class EditService {
       throw new Error("Edit request not found or already processed");
     }
 
-    // Update the payment with new values
-    await db.update(payments)
-      .set({
-        amount: edit.newAmount,
-        paymentDate: edit.newPaymentDate,
-        paymentMode: edit.newPaymentMode,
-        referenceNumber: edit.newReferenceNumber,
-        updatedAt: new Date()
-      })
-      .where(eq(payments.id, edit.paymentId));
+    if (edit.operationType === "delete") {
+      // Delete the payment
+      await db.delete(payments)
+        .where(eq(payments.id, edit.paymentId));
+    } else {
+      // Update the payment with new values
+      await db.update(payments)
+        .set({
+          amount: edit.newAmount,
+          paymentDate: edit.newPaymentDate,
+          paymentMode: edit.newPaymentMode,
+          referenceNumber: edit.newReferenceNumber,
+          updatedAt: new Date()
+        })
+        .where(eq(payments.id, edit.paymentId));
+    }
 
     // Mark edit as approved
     await db.update(paymentEdits)
@@ -118,7 +192,7 @@ export class EditService {
       .where(eq(paymentEdits.id, editId));
   }
 
-  // Approve communication edit
+  // Approve communication edit/delete
   async approveCommunicationEdit(editId: string, approverId: string): Promise<void> {
     const [edit] = await db.select()
       .from(communicationEdits)
@@ -129,17 +203,23 @@ export class EditService {
       throw new Error("Edit request not found or already processed");
     }
 
-    // Update the communication with new values
-    await db.update(communications)
-      .set({
-        content: edit.newContent,
-        outcome: edit.newOutcome,
-        promisedAmount: edit.newPromisedAmount,
-        promisedDate: edit.newPromisedDate,
-        nextActionRequired: edit.newNextActionRequired,
-        nextActionDate: edit.newNextActionDate
-      })
-      .where(eq(communications.id, edit.communicationId));
+    if (edit.operationType === "delete") {
+      // Delete the communication
+      await db.delete(communications)
+        .where(eq(communications.id, edit.communicationId));
+    } else {
+      // Update the communication with new values
+      await db.update(communications)
+        .set({
+          content: edit.newContent,
+          outcome: edit.newOutcome,
+          promisedAmount: edit.newPromisedAmount,
+          promisedDate: edit.newPromisedDate,
+          nextActionRequired: edit.newNextActionRequired,
+          nextActionDate: edit.newNextActionDate
+        })
+        .where(eq(communications.id, edit.communicationId));
+    }
 
     // Mark edit as approved
     await db.update(communicationEdits)

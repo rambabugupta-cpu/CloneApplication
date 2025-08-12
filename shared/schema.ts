@@ -273,10 +273,13 @@ export const importBatches = pgTable("import_batches", {
   statusIdx: index("import_batches_status_idx").on(table.status),
 }));
 
-// Payment edits table - track payment edit requests with approval workflow
+// Payment edits table - track payment edit/delete requests with approval workflow
 export const paymentEdits = pgTable("payment_edits", {
   id: uuid("id").primaryKey().defaultRandom(),
   paymentId: uuid("payment_id").notNull().references(() => payments.id),
+  
+  // Operation type
+  operationType: text("operation_type").default("edit").notNull(), // edit, delete
   
   // Original values (for audit trail)
   originalAmount: bigint("original_amount", { mode: "number" }).notNull(),
@@ -284,13 +287,13 @@ export const paymentEdits = pgTable("payment_edits", {
   originalPaymentMode: text("original_payment_mode").notNull(),
   originalReferenceNumber: text("original_reference_number"),
   
-  // New values
-  newAmount: bigint("new_amount", { mode: "number" }).notNull(),
-  newPaymentDate: date("new_payment_date").notNull(),
-  newPaymentMode: text("new_payment_mode").notNull(),
+  // New values (nullable for delete operations)
+  newAmount: bigint("new_amount", { mode: "number" }),
+  newPaymentDate: date("new_payment_date"),
+  newPaymentMode: text("new_payment_mode"),
   newReferenceNumber: text("new_reference_number"),
   
-  // Edit details
+  // Edit/Delete details
   editReason: text("edit_reason").notNull(),
   editedBy: uuid("edited_by").notNull().references(() => users.id),
   
@@ -310,10 +313,13 @@ export const paymentEdits = pgTable("payment_edits", {
   editedByIdx: index("payment_edits_edited_idx").on(table.editedBy),
 }));
 
-// Communication edits table - track communication edit requests
+// Communication edits table - track communication edit/delete requests
 export const communicationEdits = pgTable("communication_edits", {
   id: uuid("id").primaryKey().defaultRandom(),
   communicationId: uuid("communication_id").notNull().references(() => communications.id),
+  
+  // Operation type
+  operationType: text("operation_type").default("edit").notNull(), // edit, delete
   
   // Original values
   originalContent: text("original_content").notNull(),
@@ -323,15 +329,15 @@ export const communicationEdits = pgTable("communication_edits", {
   originalNextActionRequired: text("original_next_action_required"),
   originalNextActionDate: date("original_next_action_date"),
   
-  // New values
-  newContent: text("new_content").notNull(),
+  // New values (nullable for delete operations)
+  newContent: text("new_content"),
   newOutcome: text("new_outcome"),
   newPromisedAmount: bigint("new_promised_amount", { mode: "number" }),
   newPromisedDate: date("new_promised_date"),
   newNextActionRequired: text("new_next_action_required"),
   newNextActionDate: date("new_next_action_date"),
   
-  // Edit details
+  // Edit/Delete details
   editReason: text("edit_reason").notNull(),
   editedBy: uuid("edited_by").notNull().references(() => users.id),
   

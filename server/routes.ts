@@ -973,6 +973,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Delete payment request
+  app.post("/api/payments/:id/delete", requireAuth, async (req, res) => {
+    try {
+      const paymentId = req.params.id;
+      const { deleteReason } = req.body;
+      const userId = req.session.userId!;
+      
+      // Check user role - owner and admin can delete directly
+      const user = await storage.getUserRole(userId);
+      if (user?.role === 'owner' || user?.role === 'admin') {
+        // Direct deletion
+        await db.delete(payments).where(eq(payments.id, paymentId));
+        res.status(200).json({ message: "Payment deleted successfully" });
+      } else {
+        // Create delete request for approval
+        const deleteRequest = await editService.createPaymentDelete(paymentId, deleteReason, userId);
+        res.status(201).json(deleteRequest);
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Delete communication request
+  app.post("/api/communications/:id/delete", requireAuth, async (req, res) => {
+    try {
+      const communicationId = req.params.id;
+      const { deleteReason } = req.body;
+      const userId = req.session.userId!;
+      
+      // Check user role - owner and admin can delete directly
+      const user = await storage.getUserRole(userId);
+      if (user?.role === 'owner' || user?.role === 'admin') {
+        // Direct deletion
+        await db.delete(communications).where(eq(communications.id, communicationId));
+        res.status(200).json({ message: "Communication deleted successfully" });
+      } else {
+        // Create delete request for approval
+        const deleteRequest = await editService.createCommunicationDelete(communicationId, deleteReason, userId);
+        res.status(201).json(deleteRequest);
+      }
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+  
   // Get all pending edit requests (combined)
   app.get("/api/edits/pending", requireAuth, async (req, res) => {
     try {
