@@ -28,6 +28,19 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 
+interface UserStats {
+  total: number;
+  active: number;
+  pending: number;
+  inactive: number;
+}
+
+interface ApprovalsHistory {
+  payments: any[];
+  users: any[];
+  edits: any[];
+}
+
 export default function UserManagement() {
   const { user } = useUser();
   const { toast } = useToast();
@@ -74,13 +87,13 @@ export default function UserManagement() {
   });
 
   // Fetch user statistics
-  const { data: userStats = { total: 0, active: 0, pending: 0, inactive: 0 } } = useQuery({
+  const { data: userStats = { total: 0, active: 0, pending: 0, inactive: 0 } } = useQuery<UserStats>({
     queryKey: ["/api/users/statistics"],
     enabled: !!user && (user.role === "owner" || user.role === "admin"),
   });
 
   // Fetch all approvals history
-  const { data: approvalsHistory = { payments: [], users: [], edits: [] } } = useQuery({
+  const { data: approvalsHistory = { payments: [], users: [], edits: [] } } = useQuery<ApprovalsHistory>({
     queryKey: ["/api/approvals/history"],
     enabled: !!user && (user.role === "owner" || user.role === "admin"),
   });
@@ -107,6 +120,8 @@ export default function UserManagement() {
         description: `User has been ${variables.status} successfully.`,
       });
       queryClient.invalidateQueries({ queryKey: ["/api/users/pending"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/approvals/history"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/users/statistics"] });
       setProcessingId(null);
     },
     onError: (error: any) => {
@@ -506,7 +521,7 @@ export default function UserManagement() {
                       <TableHead>Registered</TableHead>
                       <TableHead>Bio</TableHead>
                       <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
+                      <TableHead className="text-center min-w-[200px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -553,13 +568,15 @@ export default function UserManagement() {
                         </TableCell>
                         <TableCell className="text-center">
                           {pendingUser.status === 'pending' && (
-                            <div className="flex gap-1 justify-center">
+                            <div className="flex gap-2 justify-center">
                               <Button
                                 size="sm"
                                 onClick={() => handleApprove(pendingUser.id)}
                                 disabled={processingId === pendingUser.id}
+                                className="bg-green-600 hover:bg-green-700 text-white"
                               >
-                                <CheckCircle className="h-4 w-4" />
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Approve
                               </Button>
                               <Button
                                 size="sm"
@@ -567,7 +584,8 @@ export default function UserManagement() {
                                 onClick={() => handleReject(pendingUser.id)}
                                 disabled={processingId === pendingUser.id}
                               >
-                                <XCircle className="h-4 w-4" />
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Reject
                               </Button>
                             </div>
                           )}
