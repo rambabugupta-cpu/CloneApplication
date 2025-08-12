@@ -320,6 +320,9 @@ async function seedDatabase() {
     // Create some sample edit requests for testing approvals
     console.log("Creating sample edit requests...");
     
+    // Skipping payment edits since we don't have payments created yet
+    // TODO: Add payment creation before creating payment edits
+    /*
     const { paymentEdits, communicationEdits } = await import("@shared/schema");
     
     const paymentEditIds = await db.insert(paymentEdits).values([
@@ -377,7 +380,10 @@ async function seedDatabase() {
         createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
       }
     ]).returning();
+    */
 
+    // Skip communication edits for now as well since payment edits are skipped
+    /*
     // Create communication edit requests
     const communicationEditIds = await db.insert(communicationEdits).values([
       {
@@ -423,8 +429,9 @@ async function seedDatabase() {
         createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12), // 12 hours ago
       }
     ]).returning();
+    */
 
-    console.log("Created sample edit requests for testing approvals");
+    console.log("Skipped sample edit requests - need to create payments first");
     console.log("Database seed completed successfully!");
     
     console.log("\n=== Login Credentials ===");
