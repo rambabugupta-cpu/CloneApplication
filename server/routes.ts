@@ -2,8 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import session from "express-session";
-import pgSimple from "connect-pg-simple";
-import { db, pool } from "./db";
+import MemoryStore from "memorystore";
+import { db } from "./db";
 import cors from "cors";
 import { insertUserSchema, insertCollectionSchema, insertPaymentSchema, insertCommunicationSchema, payments, communications, paymentEdits, communicationEdits } from "@shared/schema";
 import { eq } from "drizzle-orm";
@@ -52,14 +52,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     allowedHeaders: ['Content-Type', 'Authorization'],
   }));
 
-  // Create PostgreSQL session store
-  const PostgreSQLStore = pgSimple(session);
+  // Create Memory store for sessions (temporary solution)
+  const MemoryStoreSession = MemoryStore(session);
   
-  // Configure session middleware with PostgreSQL store
+  // Configure session middleware with memory store
   app.use(session({
-    store: new PostgreSQLStore({
-      pool: pool,
-      tableName: 'session', // Use the default table name
+    store: new MemoryStoreSession({
+      checkPeriod: 86400000 // prune expired entries every 24h
     }),
     secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
     resave: false,

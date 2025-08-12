@@ -13,11 +13,11 @@ if (!process.env.DATABASE_URL) {
 const sql = neon(process.env.DATABASE_URL);
 export const db = drizzle({ client: sql, schema });
 
-// Use standard pg Pool for session store to avoid WebSocket issues
+// Use standard pg Pool for session store with increased timeouts
 export const pool = new Pool({ 
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max: 10,
+  ssl: { rejectUnauthorized: false },
+  max: 5,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 2000,
+  connectionTimeoutMillis: 10000, // Increased timeout for Neon connections
 });
