@@ -71,17 +71,17 @@ export default function UserManagement() {
     );
   }
 
-  const { data: pendingUsers = [], isLoading: isLoadingUsers } = useQuery({
+  const { data: pendingUsers = [], isLoading: isLoadingUsers } = useQuery<any[]>({
     queryKey: ["/api/users/pending"],
     enabled: !!user && (user.role === "owner" || user.role === "admin"),
   });
 
-  const { data: pendingPayments = [], isLoading: isLoadingPayments } = useQuery({
+  const { data: pendingPayments = [], isLoading: isLoadingPayments } = useQuery<any[]>({
     queryKey: ["/api/payments/pending"],
     enabled: !!user && (user.role === "owner" || user.role === "admin"),
   });
 
-  const { data: pendingEditRequests = [], isLoading: isLoadingEditRequests } = useQuery({
+  const { data: pendingEditRequests = [], isLoading: isLoadingEditRequests } = useQuery<any[]>({
     queryKey: ["/api/edits/pending"],
     enabled: !!user && (user.role === "owner" || user.role === "admin"),
   });
@@ -430,6 +430,7 @@ export default function UserManagement() {
                         <TableHead>Mode</TableHead>
                         <TableHead>Reference</TableHead>
                         <TableHead>Recorded By</TableHead>
+                        <TableHead>Approved By</TableHead>
                         <TableHead className="text-center">Status</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -457,9 +458,69 @@ export default function UserManagement() {
                             </div>
                           </TableCell>
                           <TableCell>{payment.recordedByName || 'Unknown'}</TableCell>
+                          <TableCell>{payment.approvedByName || 'Admin'}</TableCell>
                           <TableCell className="text-center">
                             <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
                               Approved
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Rejected Payment List */}
+          {approvalsHistory.payments?.filter((p: any) => p.status === 'rejected').length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Rejected Payments</h3>
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[60px]">S.No</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Mode</TableHead>
+                        <TableHead>Reference</TableHead>
+                        <TableHead>Recorded By</TableHead>
+                        <TableHead>Rejected By</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAndSortedPayments
+                        .filter((p: any) => p.status === 'rejected')
+                        .map((payment: any, index: number) => (
+                        <TableRow key={payment.id}>
+                          <TableCell className="font-medium">{index + 1}</TableCell>
+                          <TableCell>
+                            <div className="max-w-[150px] truncate" title={payment.customerName || 'N/A'}>
+                              {payment.customerName || 'N/A'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {payment.paymentDate ? format(new Date(payment.paymentDate), "dd MMM yyyy") : 'N/A'}
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            {formatCurrency(payment.amount)}
+                          </TableCell>
+                          <TableCell className="capitalize">{payment.paymentMode}</TableCell>
+                          <TableCell>
+                            <div className="max-w-[100px] truncate" title={payment.referenceNumber || 'N/A'}>
+                              {payment.referenceNumber || 'N/A'}
+                            </div>
+                          </TableCell>
+                          <TableCell>{payment.recordedByName || 'Unknown'}</TableCell>
+                          <TableCell>{payment.rejectedByName || 'Admin'}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                              Rejected
                             </Badge>
                           </TableCell>
                         </TableRow>
