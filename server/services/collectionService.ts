@@ -243,8 +243,8 @@ export class CollectionService {
       return results;
     }
     
-    // Get latest communication for each collection using a subquery
-    const latestCommsQuery = db
+    // Batch fetch all communications for these collections
+    const allComms = await db
       .select({
         collectionId: communications.collectionId,
         id: communications.id,
@@ -256,25 +256,21 @@ export class CollectionService {
         nextActionRequired: communications.nextActionRequired,
         nextActionDate: communications.nextActionDate,
         createdAt: communications.createdAt,
-        rn: sql<number>`ROW_NUMBER() OVER (PARTITION BY ${communications.collectionId} ORDER BY ${communications.createdAt} DESC)`,
       })
       .from(communications)
       .where(sql`${communications.collectionId} = ANY(${collectionIds})`)
-      .as('latest_comms_sub');
+      .orderBy(desc(communications.createdAt));
     
-    const latestComms = await db
-      .select()
-      .from(latestCommsQuery)
-      .where(sql`rn = 1`);
-    
-    // Create map for efficient lookup
+    // Group communications by collection and keep only the latest
     const latestCommsMap = new Map();
-    latestComms.forEach((comm: any) => {
-      latestCommsMap.set(comm.collectionId, comm);
+    allComms.forEach((comm: any) => {
+      if (!latestCommsMap.has(comm.collectionId)) {
+        latestCommsMap.set(comm.collectionId, comm);
+      }
     });
     
-    // Get latest approved payment for each collection using a subquery
-    const latestPaymentsQuery = db
+    // Batch fetch all approved payments for these collections
+    const allPayments = await db
       .select({
         collectionId: payments.collectionId,
         amount: payments.amount,
@@ -282,7 +278,6 @@ export class CollectionService {
         paymentMode: payments.paymentMode,
         status: payments.status,
         createdAt: payments.createdAt,
-        rn: sql<number>`ROW_NUMBER() OVER (PARTITION BY ${payments.collectionId} ORDER BY ${payments.createdAt} DESC)`,
       })
       .from(payments)
       .where(
@@ -291,17 +286,14 @@ export class CollectionService {
           eq(payments.status, "approved" as any)
         )
       )
-      .as('latest_payments_sub');
+      .orderBy(desc(payments.createdAt));
     
-    const latestPayments = await db
-      .select()
-      .from(latestPaymentsQuery)
-      .where(sql`rn = 1`);
-    
-    // Create map for efficient lookup
+    // Group payments by collection and keep only the latest
     const latestPaymentsMap = new Map();
-    latestPayments.forEach((payment: any) => {
-      latestPaymentsMap.set(payment.collectionId, payment);
+    allPayments.forEach((payment: any) => {
+      if (!latestPaymentsMap.has(payment.collectionId)) {
+        latestPaymentsMap.set(payment.collectionId, payment);
+      }
     });
     
     // Combine results efficiently
