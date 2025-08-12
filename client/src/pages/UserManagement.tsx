@@ -377,7 +377,7 @@ export default function UserManagement() {
                       <TableHead>Reference</TableHead>
                       <TableHead>Recorded By</TableHead>
                       <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-center">Actions</TableHead>
+                      <TableHead className="text-center min-w-[200px]">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -425,13 +425,15 @@ export default function UserManagement() {
                         </TableCell>
                         <TableCell className="text-center">
                           {payment.status === 'pending' && (
-                            <div className="flex gap-1 justify-center">
+                            <div className="flex gap-2 justify-center">
                               <Button
                                 size="sm"
                                 onClick={() => handleApprovePayment(payment.id)}
                                 disabled={processingId === payment.id}
+                                className="bg-green-600 hover:bg-green-700 text-white"
                               >
-                                <CheckCircle className="h-4 w-4" />
+                                <CheckCircle className="h-4 w-4 mr-1" />
+                                Approve
                               </Button>
                               <Button
                                 size="sm"
@@ -439,7 +441,8 @@ export default function UserManagement() {
                                 onClick={() => handleRejectPayment(payment.id)}
                                 disabled={processingId === payment.id}
                               >
-                                <XCircle className="h-4 w-4" />
+                                <XCircle className="h-4 w-4 mr-1" />
+                                Reject
                               </Button>
                             </div>
                           )}
@@ -666,7 +669,7 @@ export default function UserManagement() {
                   <TableHead>Date</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-center">Actions</TableHead>
+                  <TableHead className="text-center min-w-[200px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -731,10 +734,11 @@ export default function UserManagement() {
                     </TableCell>
                     <TableCell className="text-center">
                       {editRequest.status === 'pending' && (
-                        <div className="flex gap-1 justify-center">
+                        <div className="flex gap-2 justify-center">
                           <Button
                             size="sm"
                             onClick={async () => {
+                              setProcessingId(editRequest.id);
                               try {
                                 const response = await fetch(`/api/edits/${editRequest.id}/approve`, {
                                   method: "POST",
@@ -747,6 +751,15 @@ export default function UserManagement() {
                                     description: "The edit request has been approved successfully.",
                                   });
                                   queryClient.invalidateQueries({ queryKey: ["/api/edits/pending"] });
+                                  queryClient.invalidateQueries({ queryKey: ["/api/approvals/history"] });
+                                  queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+                                } else {
+                                  const error = await response.json();
+                                  toast({
+                                    title: "Error",
+                                    description: error.error || "Failed to approve edit request",
+                                    variant: "destructive",
+                                  });
                                 }
                               } catch (error) {
                                 toast({
@@ -754,16 +767,21 @@ export default function UserManagement() {
                                   description: "Failed to approve edit request",
                                   variant: "destructive",
                                 });
+                              } finally {
+                                setProcessingId(null);
                               }
                             }}
                             disabled={processingId === editRequest.id}
+                            className="bg-green-600 hover:bg-green-700 text-white"
                           >
-                            <CheckCircle className="h-4 w-4" />
+                            <CheckCircle className="h-4 w-4 mr-1" />
+                            Approve
                           </Button>
                           <Button
                             size="sm"
                             variant="destructive"
                             onClick={async () => {
+                              setProcessingId(editRequest.id);
                               try {
                                 const response = await fetch(`/api/edits/${editRequest.id}/reject`, {
                                   method: "POST",
@@ -776,6 +794,14 @@ export default function UserManagement() {
                                     description: "The edit request has been rejected.",
                                   });
                                   queryClient.invalidateQueries({ queryKey: ["/api/edits/pending"] });
+                                  queryClient.invalidateQueries({ queryKey: ["/api/approvals/history"] });
+                                } else {
+                                  const error = await response.json();
+                                  toast({
+                                    title: "Error",
+                                    description: error.error || "Failed to reject edit request",
+                                    variant: "destructive",
+                                  });
                                 }
                               } catch (error) {
                                 toast({
@@ -783,11 +809,14 @@ export default function UserManagement() {
                                   description: "Failed to reject edit request",
                                   variant: "destructive",
                                 });
+                              } finally {
+                                setProcessingId(null);
                               }
                             }}
                             disabled={processingId === editRequest.id}
                           >
-                            <XCircle className="h-4 w-4" />
+                            <XCircle className="h-4 w-4 mr-1" />
+                            Reject
                           </Button>
                         </div>
                       )}
