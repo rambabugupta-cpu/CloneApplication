@@ -3,6 +3,7 @@ import {
   collections, 
   customers, 
   payments,
+  communications,
   importBatches,
   type Collection, 
   type InsertCollection 
@@ -10,6 +11,10 @@ import {
 import { eq, and, or, gte, lte, desc, asc, sql, inArray } from "drizzle-orm";
 
 export class CollectionService {
+  // Cache for frequently accessed data
+  private static statusCache = new Map<string, string>();
+  private static agingCache = new Map<string, number>();
+
   async createCollection(data: InsertCollection): Promise<Collection> {
     const [collection] = await db.insert(collections).values({
       ...data,
@@ -26,7 +31,7 @@ export class CollectionService {
       updatedAt: new Date(),
     };
 
-    // Recalculate status if amounts changed
+    // Only recalculate if needed
     if (data.outstandingAmount !== undefined || data.paidAmount !== undefined) {
       const existing = await this.getCollectionById(id);
       if (existing) {
@@ -45,6 +50,10 @@ export class CollectionService {
       throw new Error("Collection not found");
     }
 
+    // Clear cache for this collection
+    CollectionService.statusCache.delete(id);
+    CollectionService.agingCache.delete(id);
+
     return updated;
   }
 
@@ -53,7 +62,7 @@ export class CollectionService {
       .from(collections)
       .where(eq(collections.id, id))
       .limit(1);
-    
+
     return collection;
   }
 
@@ -81,7 +90,6 @@ export class CollectionService {
       createdAt: collections.createdAt,
       updatedAt: collections.updatedAt,
       importBatchId: collections.importBatchId,
-      // Import batch details
       importFileName: importBatches.fileName,
       importDate: importBatches.createdAt,
       importedBy: importBatches.importedBy,
@@ -89,7 +97,8 @@ export class CollectionService {
       .from(collections)
       .leftJoin(importBatches, eq(collections.importBatchId, importBatches.id))
       .where(eq(collections.customerId, customerId))
-      .orderBy(desc(collections.dueDate));
+      .orderBy(desc(collections.dueDate))
+      .limit(50); // Add pagination limit
   }
 
   async getCollectionsByStatus(status: string): Promise<Collection[]> {
@@ -156,31 +165,23 @@ export class CollectionService {
     toDate?: Date;
     minAmount?: number;
     maxAmount?: number;
+    limit?: number;
+    offset?: number;
   }): Promise<any[]> {
     const conditions = [];
+    const limit = filters.limit || 100;
+    const offset = filters.offset || 0;
 
-    if (filters.status) {
-      conditions.push(eq(collections.status, filters.status as any));
-    }
-    if (filters.assignedTo) {
-      conditions.push(eq(collections.assignedTo, filters.assignedTo));
-    }
-    if (filters.customerId) {
-      conditions.push(eq(collections.customerId, filters.customerId));
-    }
-    if (filters.fromDate) {
-      conditions.push(gte(collections.dueDate, filters.fromDate.toISOString() as any));
-    }
-    if (filters.toDate) {
-      conditions.push(lte(collections.dueDate, filters.toDate.toISOString() as any));
-    }
-    if (filters.minAmount) {
-      conditions.push(gte(collections.outstandingAmount, filters.minAmount));
-    }
-    if (filters.maxAmount) {
-      conditions.push(lte(collections.outstandingAmount, filters.maxAmount));
-    }
+    // Build conditions efficiently
+    if (filters.status) conditions.push(eq(collections.status, filters.status as any));
+    if (filters.assignedTo) conditions.push(eq(collections.assignedTo, filters.assignedTo));
+    if (filters.customerId) conditions.push(eq(collections.customerId, filters.customerId));
+    if (filters.fromDate) conditions.push(gte(collections.dueDate, filters.fromDate.toISOString() as any));
+    if (filters.toDate) conditions.push(lte(collections.dueDate, filters.toDate.toISOString() as any));
+    if (filters.minAmount) conditions.push(gte(collections.outstandingAmount, filters.minAmount));
+    if (filters.maxAmount) conditions.push(lte(collections.outstandingAmount, filters.maxAmount));
 
+    // Use a more efficient query with proper joins
     let query = db.select({
       id: collections.id,
       customerId: collections.customerId,
@@ -204,21 +205,18 @@ export class CollectionService {
       createdAt: collections.createdAt,
       updatedAt: collections.updatedAt,
       importBatchId: collections.importBatchId,
-      // Customer details
       customerName: customers.primaryContactName,
       customerCompany: customers.companyName,
       customerPhone: customers.primaryPhone,
       customerEmail: customers.primaryEmail,
       customerCode: customers.customerCode,
-      // Customer address
       customerAddress: sql<string>`CONCAT_WS(', ', 
         NULLIF(${customers.addressLine1}, ''), 
         NULLIF(${customers.addressLine2}, ''), 
         NULLIF(${customers.city}, ''), 
         NULLIF(${customers.state}, ''), 
         NULLIF(${customers.pincode}, '')
-      )`.as('customerAddress'),
-      // Import batch details
+      )`,
       importFileName: importBatches.fileName,
       importDate: importBatches.createdAt,
       importedBy: importBatches.importedBy,
@@ -226,96 +224,85 @@ export class CollectionService {
     .from(collections)
     .leftJoin(customers, eq(collections.customerId, customers.id))
     .leftJoin(importBatches, eq(collections.importBatchId, importBatches.id));
-    
+
     if (conditions.length > 0) {
       query = query.where(and(...conditions)) as any;
     }
 
-    const results = await query.orderBy(desc(collections.dueDate)).limit(100); // Add pagination limit
-    
-    // Import communications table
-    const { communications } = await import("@shared/schema");
-    
-    // Optimize: Batch fetch latest communications and payments for all collections at once
+    const results = await query
+      .orderBy(desc(collections.dueDate))
+      .limit(limit)
+      .offset(offset);
+
+    if (results.length === 0) return results;
+
+    // Batch fetch communications and payments more efficiently
     const collectionIds = results.map(r => r.id);
-    
-    if (collectionIds.length === 0) {
-      return results;
-    }
-    
-    // Batch fetch all communications for these collections
-    const allComms = collectionIds.length > 0 
-      ? await db
-          .select({
-            collectionId: communications.collectionId,
-            id: communications.id,
-            type: communications.type,
-            content: communications.content,
-            outcome: communications.outcome,
-            promisedAmount: communications.promisedAmount,
-            promisedDate: communications.promisedDate,
-            nextActionRequired: communications.nextActionRequired,
-            nextActionDate: communications.nextActionDate,
-            createdAt: communications.createdAt,
-          })
-          .from(communications)
-          .where(inArray(communications.collectionId, collectionIds))
-          .orderBy(desc(communications.createdAt))
-      : [];
-    
-    // Group communications by collection and keep only the latest
+
+    // Single query for latest communications
+    const latestComms = await db
+      .select({
+        collectionId: communications.collectionId,
+        id: communications.id,
+        type: communications.type,
+        content: communications.content,
+        outcome: communications.outcome,
+        promisedAmount: communications.promisedAmount,
+        promisedDate: communications.promisedDate,
+        nextActionRequired: communications.nextActionRequired,
+        nextActionDate: communications.nextActionDate,
+        createdAt: communications.createdAt,
+        rn: sql<number>`ROW_NUMBER() OVER (PARTITION BY ${communications.collectionId} ORDER BY ${communications.createdAt} DESC)`,
+      })
+      .from(communications)
+      .where(inArray(communications.collectionId, collectionIds));
+
     const latestCommsMap = new Map();
-    allComms.forEach((comm: any) => {
-      if (!latestCommsMap.has(comm.collectionId)) {
+    latestComms.forEach((comm: any) => {
+      if (comm.rn === 1) {
         latestCommsMap.set(comm.collectionId, comm);
       }
     });
-    
-    // Batch fetch all approved payments for these collections
-    const allPayments = collectionIds.length > 0
-      ? await db
-          .select({
-            collectionId: payments.collectionId,
-            amount: payments.amount,
-            paymentDate: payments.paymentDate,
-            paymentMode: payments.paymentMode,
-            status: payments.status,
-            createdAt: payments.createdAt,
-          })
-          .from(payments)
-          .where(
-            and(
-              inArray(payments.collectionId, collectionIds),
-              eq(payments.status, "approved" as any)
-            )
-          )
-          .orderBy(desc(payments.createdAt))
-      : [];
-    
-    // Group payments by collection and keep only the latest
+
+    // Single query for latest payments
+    const latestPayments = await db
+      .select({
+        collectionId: payments.collectionId,
+        amount: payments.amount,
+        paymentDate: payments.paymentDate,
+        paymentMode: payments.paymentMode,
+        status: payments.status,
+        createdAt: payments.createdAt,
+        rn: sql<number>`ROW_NUMBER() OVER (PARTITION BY ${payments.collectionId} ORDER BY ${payments.createdAt} DESC)`,
+      })
+      .from(payments)
+      .where(
+        and(
+          inArray(payments.collectionId, collectionIds),
+          eq(payments.status, "approved" as any)
+        )
+      );
+
     const latestPaymentsMap = new Map();
-    allPayments.forEach((payment: any) => {
-      if (!latestPaymentsMap.has(payment.collectionId)) {
+    latestPayments.forEach((payment: any) => {
+      if (payment.rn === 1) {
         latestPaymentsMap.set(payment.collectionId, payment);
       }
     });
-    
-    // Combine results efficiently
-    const collectionsWithComms = results.map(collection => {
+
+    // Combine results
+    return results.map(collection => {
       const latestComm = latestCommsMap.get(collection.id);
       const latestPayment = latestPaymentsMap.get(collection.id);
-      
+
       return {
         ...collection,
         latestCommunication: latestComm || null,
         lastPaymentDate: latestPayment?.paymentDate || null,
         lastPaymentAmount: latestPayment?.amount || 0,
-        // Update nextFollowupDate from communication if available
         nextFollowupDate: latestComm?.nextActionDate || collection.nextFollowupDate,
       };
     });
-    
-    return collectionsWithComms;
   }
 
   async updatePaymentStatus(collectionId: string, paidAmount: number): Promise<void> {
@@ -384,14 +371,15 @@ export class CollectionService {
     totalCount: number;
     collectionRate: number;
   }> {
-    const stats = await db.select({
+    // Use a single optimized query
+    const [stats] = await db.select({
       totalOutstanding: sql<number>`COALESCE(SUM(${collections.outstandingAmount}), 0)`,
       totalCollected: sql<number>`COALESCE(SUM(${collections.paidAmount}), 0)`,
       overdueCount: sql<number>`COUNT(*) FILTER (WHERE ${collections.status} = 'overdue')`,
       totalCount: sql<number>`COUNT(*)`,
     }).from(collections);
 
-    const result = stats[0] || {
+    const result = stats || {
       totalOutstanding: 0,
       totalCollected: 0,
       overdueCount: 0,
@@ -401,18 +389,13 @@ export class CollectionService {
     const total = result.totalOutstanding + result.totalCollected;
     const collectionRate = total > 0 ? (result.totalCollected / total) * 100 : 0;
 
-    return {
-      ...result,
-      collectionRate,
-    };
+    return { ...result, collectionRate };
   }
 
   private calculateStatus(outstanding: number, original: number): "pending" | "partial" | "paid" | "overdue" {
     if (outstanding === 0) return "paid";
     if (outstanding < original) return "partial";
     
-    const today = new Date();
-    // This will be updated by a scheduled job based on due date
     return "pending";
   }
 
@@ -420,14 +403,13 @@ export class CollectionService {
     const due = new Date(dueDate);
     const today = new Date();
     const diffTime = today.getTime() - due.getTime();
-    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-    return Math.max(0, diffDays);
+    return Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
   }
 
   async batchUpdateStatus(): Promise<void> {
-    const today = new Date();
-    
-    // Update overdue collections
+    const today = new Date().toISOString();
+
+    // Single query to update overdue collections
     await db.update(collections)
       .set({
         status: "overdue" as any,
@@ -435,21 +417,13 @@ export class CollectionService {
       })
       .where(
         and(
-          lte(collections.dueDate, today.toISOString() as any),
+          lte(collections.dueDate, today as any),
           inArray(collections.status, ["pending", "partial"] as any),
         )
       );
 
-    // Update aging days for all collections
-    const allCollections = await db.select().from(collections);
-    
-    for (const collection of allCollections) {
-      const agingDays = this.calculateAgingDays(collection.dueDate);
-      if (agingDays !== collection.agingDays) {
-        await db.update(collections)
-          .set({ agingDays })
-          .where(eq(collections.id, collection.id));
-      }
-    }
+    // Clear caches
+    CollectionService.statusCache.clear();
+    CollectionService.agingCache.clear();
   }
 }

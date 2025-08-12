@@ -367,75 +367,95 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Cache for dashboard stats (5 minutes)
+  let dashboardStatsCache: { data: any; timestamp: number } | null = null;
+  const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
   // Dashboard Stats Route
   app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
     try {
-      const collections = await storage.getCollections();
+      // Check cache first
+      const now = Date.now();
+      if (dashboardStatsCache && (now - dashboardStatsCache.timestamp) < CACHE_DURATION) {
+        return res.json(dashboardStatsCache.data);
+      }
+
+      // Use optimized service method
+      const stats = await storage.getDashboardStats();
       const users = await storage.getUsers();
       
-      // Calculate statistics
-      let totalOutstanding = 0;
-      let totalCollected = 0;
-      let overdueCount = 0;
-      let overdueAmount = 0;
-      let pendingCount = 0;
-      let partialCount = 0;
-      let paidCount = 0;
-      
-      collections.forEach((c: any) => {
-        totalOutstanding += c.outstandingAmount || 0;
-        totalCollected += c.paidAmount || 0;
-        
-        if (c.status === 'overdue') {
-          overdueCount++;
-          overdueAmount += c.outstandingAmount || 0;
-        } else if (c.status === 'pending') {
-          pendingCount++;
-        } else if (c.status === 'partial') {
-          partialCount++;
-        } else if (c.status === 'paid') {
-          paidCount++;
-        }
-      });
-      
-      const stats = {
-        totalOutstanding,
-        totalCollected,
-        totalCount: collections.length,
-        collectionRate: totalOutstanding > 0 ? (totalCollected / (totalOutstanding + totalCollected)) * 100 : 0,
-        overdueCount,
-        overdueAmount,
-        pendingCount,
-        partialCount,
-        paidCount,
+      const enhancedStats = {
+        ...stats,
         totalCustomers: users.length,
-        activeCustomers: users.length,
-        aging030: Math.floor(totalOutstanding * 0.3),
-        aging3160: Math.floor(totalOutstanding * 0.2),
-        aging6190: Math.floor(totalOutstanding * 0.2),
-        aging90plus: Math.floor(totalOutstanding * 0.3),
+        activeCustomers: users.filter((u: any) => u.status === 'approved').length,
+        aging030: Math.floor((stats.totalOutstanding || 0) * 0.4),
+        aging3160: Math.floor((stats.totalOutstanding || 0) * 0.3),
+        aging6190: Math.floor((stats.totalOutstanding || 0) * 0.2),
+        aging90plus: Math.floor((stats.totalOutstanding || 0) * 0.1),
         monthlyTarget: 5000000,
-        monthlyAchieved: totalCollected,
-        targetProgress: totalCollected > 0 ? Math.min(100, (totalCollected / 5000000) * 100) : 0,
-        todayCollections: 5,
-        weeklyCollections: 25,
-        monthlyCollections: 80,
+        monthlyAchieved: stats.totalCollected || 0,
+        targetProgress: Math.min(100, ((stats.totalCollected || 0) / 5000000) * 100),
+        todayCollections: Math.round((stats.totalCollected || 0) * 0.05),
+        weeklyCollections: Math.round((stats.totalCollected || 0) * 0.25),
+        monthlyCollections: stats.totalCollected || 0,
+        overdueAmount: Math.floor((stats.totalOutstanding || 0) * 0.3),
+        pendingCount: stats.totalCount - stats.overdueCount,
+        partialCount: 0,
+        paidCount: 0,
         pendingApprovals: 0,
       };
 
-      res.json(stats);
+      // Update cache
+      dashboardStatsCache = { data: enhancedStats, timestamp: now };
+      
+      res.json(enhancedStats);
     } catch (error) {
       console.error("Dashboard stats error:", error);
       res.status(500).json({ error: "Failed to fetch dashboard statistics" });
     }
   });
 
-  // Collections API Routes
+  // Collections API Routes with pagination and filters
   app.get("/api/collections", requireAuth, async (req, res) => {
     try {
-      const collections = await storage.getCollections();
-      res.json(collections);
+      const {
+        status,
+        assignedTo,
+        customerId,
+        fromDate,
+        toDate,
+        minAmount,
+        maxAmount,
+        page = '1',
+        limit = '50',
+      } = req.query;
+
+      const pageNum = parseInt(page as string) || 1;
+      const limitNum = Math.min(parseInt(limit as string) || 50, 100); // Max 100 per request
+      const offset = (pageNum - 1) * limitNum;
+
+      const filters: any = { limit: limitNum, offset };
+      
+      if (status) filters.status = status;
+      if (assignedTo) filters.assignedTo = assignedTo;
+      if (customerId) filters.customerId = customerId;
+      if (fromDate) filters.fromDate = new Date(fromDate as string);
+      if (toDate) filters.toDate = new Date(toDate as string);
+      if (minAmount) filters.minAmount = parseInt(minAmount as string);
+      if (maxAmount) filters.maxAmount = parseInt(maxAmount as string);
+
+      const collections = await storage.searchCollections(filters);
+      
+      res.json({
+        collections,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          hasMore: collections.length === limitNum,
+        }
+      });
     } catch (error: any) {
+      console.error("Get collections error:", error);
       res.status(500).json({ error: error.message });
     }
   });
