@@ -326,20 +326,6 @@ export default function UserManagement() {
               </Badge>
             </div>
             <div className="flex gap-2">
-              <ToggleGroup type="single" value={paymentFilter} onValueChange={(value) => value && setPaymentFilter(value as any)}>
-                <ToggleGroupItem value="all" size="sm">
-                  <Filter className="h-3 w-3 mr-1" />
-                  All
-                </ToggleGroupItem>
-                <ToggleGroupItem value="pending" size="sm">
-                  <Clock className="h-3 w-3 mr-1" />
-                  Pending
-                </ToggleGroupItem>
-                <ToggleGroupItem value="approved" size="sm">
-                  <CheckCircle className="h-3 w-3 mr-1" />
-                  Approved
-                </ToggleGroupItem>
-              </ToggleGroup>
               <Select value={paymentSort} onValueChange={(value: any) => setPaymentSort(value)}>
                 <SelectTrigger className="w-[140px]">
                   <ArrowUpDown className="h-3 w-3 mr-1" />
@@ -353,78 +339,51 @@ export default function UserManagement() {
               </Select>
             </div>
           </div>
-          {approvalsHistory.payments?.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <CreditCard className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No Payment Records</h3>
-                <p className="text-muted-foreground">
-                  No payment approvals to display.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Invoice</TableHead>
-                      <TableHead>Mode</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Reference</TableHead>
-                      <TableHead>Recorded By</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-center min-w-[200px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAndSortedPayments.map((payment: any) => (
-                      <TableRow key={payment.id}>
-                        <TableCell className="font-semibold">
-                          {formatCurrency(payment.amount)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="max-w-[150px] truncate" title={payment.customerName || 'N/A'}>
-                            {payment.customerName || 'N/A'}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="max-w-[100px] truncate" title={payment.collectionInvoice || 'N/A'}>
-                            {payment.collectionInvoice || 'N/A'}
-                          </div>
-                        </TableCell>
-                        <TableCell className="capitalize">{payment.paymentMode}</TableCell>
-                        <TableCell>
-                          {payment.paymentDate ? format(new Date(payment.paymentDate), "dd MMM yyyy") : 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          <div className="max-w-[100px] truncate" title={payment.referenceNumber || 'N/A'}>
-                            {payment.referenceNumber || 'N/A'}
-                          </div>
-                        </TableCell>
-                        <TableCell>{payment.recordedByName || 'Unknown'}</TableCell>
-                        <TableCell className="text-center">
-                          {payment.status === 'pending' && (
-                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-                              Pending
-                            </Badge>
-                          )}
-                          {payment.status === 'approved' && (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-                              Approved
-                            </Badge>
-                          )}
-                          {payment.status === 'rejected' && (
-                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
-                              Rejected
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {payment.status === 'pending' && (
+          
+          {/* Pending Payment Requests */}
+          {approvalsHistory.payments?.filter((p: any) => p.status === 'pending').length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Pending Payment Requests</h3>
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[60px]">S.No</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Mode</TableHead>
+                        <TableHead>Reference</TableHead>
+                        <TableHead>Recorded By</TableHead>
+                        <TableHead className="text-center min-w-[200px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAndSortedPayments
+                        .filter((p: any) => p.status === 'pending')
+                        .map((payment: any, index: number) => (
+                        <TableRow key={payment.id}>
+                          <TableCell className="font-medium">{index + 1}</TableCell>
+                          <TableCell>
+                            <div className="max-w-[150px] truncate" title={payment.customerName || 'N/A'}>
+                              {payment.customerName || 'N/A'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {payment.paymentDate ? format(new Date(payment.paymentDate), "dd MMM yyyy") : 'N/A'}
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            {formatCurrency(payment.amount)}
+                          </TableCell>
+                          <TableCell className="capitalize">{payment.paymentMode}</TableCell>
+                          <TableCell>
+                            <div className="max-w-[100px] truncate" title={payment.referenceNumber || 'N/A'}>
+                              {payment.referenceNumber || 'N/A'}
+                            </div>
+                          </TableCell>
+                          <TableCell>{payment.recordedByName || 'Unknown'}</TableCell>
+                          <TableCell className="text-center">
                             <div className="flex gap-2 justify-center">
                               <Button
                                 size="sm"
@@ -445,15 +404,81 @@ export default function UserManagement() {
                                 Reject
                               </Button>
                             </div>
-                          )}
-                          {payment.status !== 'pending' && (
-                            <span className="text-sm text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Approved Payment List */}
+          {approvalsHistory.payments?.filter((p: any) => p.status === 'approved').length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Approved Payments</h3>
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[60px]">S.No</TableHead>
+                        <TableHead>Customer</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Mode</TableHead>
+                        <TableHead>Reference</TableHead>
+                        <TableHead>Recorded By</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAndSortedPayments
+                        .filter((p: any) => p.status === 'approved')
+                        .map((payment: any, index: number) => (
+                        <TableRow key={payment.id}>
+                          <TableCell className="font-medium">{index + 1}</TableCell>
+                          <TableCell>
+                            <div className="max-w-[150px] truncate" title={payment.customerName || 'N/A'}>
+                              {payment.customerName || 'N/A'}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {payment.paymentDate ? format(new Date(payment.paymentDate), "dd MMM yyyy") : 'N/A'}
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            {formatCurrency(payment.amount)}
+                          </TableCell>
+                          <TableCell className="capitalize">{payment.paymentMode}</TableCell>
+                          <TableCell>
+                            <div className="max-w-[100px] truncate" title={payment.referenceNumber || 'N/A'}>
+                              {payment.referenceNumber || 'N/A'}
+                            </div>
+                          </TableCell>
+                          <TableCell>{payment.recordedByName || 'Unknown'}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                              Approved
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {approvalsHistory.payments?.length === 0 && (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <CreditCard className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No Payment Records</h3>
+                <p className="text-muted-foreground">
+                  No payment approvals to display.
+                </p>
               </CardContent>
             </Card>
           )}
@@ -474,20 +499,6 @@ export default function UserManagement() {
               </Badge>
             </div>
             <div className="flex gap-2">
-              <ToggleGroup type="single" value={userFilter} onValueChange={(value) => value && setUserFilter(value as any)}>
-                <ToggleGroupItem value="all" size="sm">
-                  <Filter className="h-3 w-3 mr-1" />
-                  All
-                </ToggleGroupItem>
-                <ToggleGroupItem value="pending" size="sm">
-                  <Clock className="h-3 w-3 mr-1" />
-                  Pending
-                </ToggleGroupItem>
-                <ToggleGroupItem value="approved" size="sm">
-                  <UserCheck className="h-3 w-3 mr-1" />
-                  Active
-                </ToggleGroupItem>
-              </ToggleGroup>
               <Select value={userSort} onValueChange={(value: any) => setUserSort(value)}>
                 <SelectTrigger className="w-[140px]">
                   <ArrowUpDown className="h-3 w-3 mr-1" />
@@ -501,76 +512,45 @@ export default function UserManagement() {
               </Select>
             </div>
           </div>
-          {approvalsHistory.users?.length === 0 ? (
-            <Card>
-              <CardContent className="p-12 text-center">
-                <Users className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-                <h3 className="text-xl font-semibold mb-2">No User Records</h3>
-                <p className="text-muted-foreground">
-                  No user approvals to display.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead>Role</TableHead>
-                      <TableHead>Registered</TableHead>
-                      <TableHead>Bio</TableHead>
-                      <TableHead className="text-center">Status</TableHead>
-                      <TableHead className="text-center min-w-[200px]">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredAndSortedUsers.map((pendingUser: any) => (
-                      <TableRow key={pendingUser.id}>
-                        <TableCell className="font-medium">
-                          {pendingUser.fullName || pendingUser.name || "No Name"}
-                        </TableCell>
-                        <TableCell>
-                          <div className="max-w-[180px] truncate" title={pendingUser.email}>
-                            {pendingUser.email}
-                          </div>
-                        </TableCell>
-                        <TableCell>{pendingUser.phoneNumber || 'N/A'}</TableCell>
-                        <TableCell className="capitalize">{pendingUser.role || 'employee'}</TableCell>
-                        <TableCell>
-                          {new Date(pendingUser.createdAt).toLocaleDateString()}
-                        </TableCell>
-                        <TableCell>
-                          {pendingUser.bio ? (
-                            <div className="max-w-[200px] truncate" title={pendingUser.bio}>
-                              {pendingUser.bio}
+          
+          {/* Pending User Requests */}
+          {approvalsHistory.users?.filter((u: any) => u.status === 'pending').length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Pending User Requests</h3>
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[60px]">S.No</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Registered</TableHead>
+                        <TableHead className="text-center min-w-[200px]">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAndSortedUsers
+                        .filter((u: any) => u.status === 'pending')
+                        .map((pendingUser: any, index: number) => (
+                        <TableRow key={pendingUser.id}>
+                          <TableCell className="font-medium">{index + 1}</TableCell>
+                          <TableCell className="font-medium">
+                            {pendingUser.fullName || pendingUser.name || "No Name"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-w-[180px] truncate" title={pendingUser.email}>
+                              {pendingUser.email}
                             </div>
-                          ) : (
-                            'N/A'
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {pendingUser.status === 'pending' && (
-                            <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-                              Pending
-                            </Badge>
-                          )}
-                          {pendingUser.status === 'active' && (
-                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-                              Active
-                            </Badge>
-                          )}
-                          {pendingUser.status === 'rejected' && (
-                            <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
-                              Rejected
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          {pendingUser.status === 'pending' && (
+                          </TableCell>
+                          <TableCell>{pendingUser.phoneNumber || 'N/A'}</TableCell>
+                          <TableCell className="capitalize">{pendingUser.role || 'employee'}</TableCell>
+                          <TableCell>
+                            {new Date(pendingUser.createdAt).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-center">
                             <div className="flex gap-2 justify-center">
                               <Button
                                 size="sm"
@@ -591,15 +571,75 @@ export default function UserManagement() {
                                 Reject
                               </Button>
                             </div>
-                          )}
-                          {pendingUser.status !== 'pending' && (
-                            <span className="text-sm text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Active Users List */}
+          {approvalsHistory.users?.filter((u: any) => u.status === 'active').length > 0 && (
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold">Active Users</h3>
+              <Card>
+                <CardContent className="p-0">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[60px]">S.No</TableHead>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Registered</TableHead>
+                        <TableHead className="text-center">Status</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAndSortedUsers
+                        .filter((u: any) => u.status === 'active')
+                        .map((user: any, index: number) => (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-medium">{index + 1}</TableCell>
+                          <TableCell className="font-medium">
+                            {user.fullName || user.name || "No Name"}
+                          </TableCell>
+                          <TableCell>
+                            <div className="max-w-[180px] truncate" title={user.email}>
+                              {user.email}
+                            </div>
+                          </TableCell>
+                          <TableCell>{user.phoneNumber || 'N/A'}</TableCell>
+                          <TableCell className="capitalize">{user.role || 'employee'}</TableCell>
+                          <TableCell>
+                            {new Date(user.createdAt).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                              Active
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {approvalsHistory.users?.length === 0 && (
+            <Card>
+              <CardContent className="p-12 text-center">
+                <Users className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-xl font-semibold mb-2">No User Records</h3>
+                <p className="text-muted-foreground">
+                  No user approvals to display.
+                </p>
               </CardContent>
             </Card>
           )}
@@ -620,20 +660,6 @@ export default function UserManagement() {
           </Badge>
         </div>
         <div className="flex gap-2">
-          <ToggleGroup type="single" value={editFilter} onValueChange={(value) => value && setEditFilter(value as any)}>
-            <ToggleGroupItem value="all" size="sm">
-              <Filter className="h-3 w-3 mr-1" />
-              All
-            </ToggleGroupItem>
-            <ToggleGroupItem value="pending" size="sm">
-              <Clock className="h-3 w-3 mr-1" />
-              Pending
-            </ToggleGroupItem>
-            <ToggleGroupItem value="approved" size="sm">
-              <CheckCircle className="h-3 w-3 mr-1" />
-              Approved
-            </ToggleGroupItem>
-          </ToggleGroup>
           <Select value={editSort} onValueChange={(value: any) => setEditSort(value)}>
             <SelectTrigger className="w-[140px]">
               <ArrowUpDown className="h-3 w-3 mr-1" />
@@ -647,34 +673,191 @@ export default function UserManagement() {
           </Select>
         </div>
       </div>
-      {approvalsHistory.edits?.length === 0 ? (
-        <Card>
-          <CardContent className="p-12 text-center">
-            <Edit className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-xl font-semibold mb-2">No Edit Requests</h3>
-            <p className="text-muted-foreground">
-              No edit requests to display.
-            </p>
+      
+      {/* Pending Edit Requests */}
+      {approvalsHistory.edits?.filter((e: any) => e.status === 'pending').length > 0 && (
+        <div className="space-y-4">
+          <h3 className="text-lg font-semibold">Pending Edit Requests</h3>
+          <Card>
+            <CardContent className="p-0">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-[60px]">S.No</TableHead>
+                    <TableHead className="w-[100px]">Type</TableHead>
+                    <TableHead>Details</TableHead>
+                    <TableHead>Requested By</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Reason</TableHead>
+                    <TableHead className="text-center min-w-[200px]">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {filteredAndSortedEdits
+                    .filter((e: any) => e.status === 'pending')
+                    .map((editRequest: any, index: number) => (
+                    <TableRow key={editRequest.id}>
+                      <TableCell className="font-medium">{index + 1}</TableCell>
+                      <TableCell>
+                        <Badge variant={editRequest.entityType === 'payment' ? 'default' : 'secondary'}>
+                          {editRequest.entityType === 'payment' ? 'Payment' : 'Comm'}
+                        </Badge>
+                      </TableCell>
+                    <TableCell>
+                      {editRequest.entityType === 'payment' && editRequest.newData ? (
+                        <div className="text-sm space-y-0.5">
+                          {editRequest.newData.amount && (
+                            <div>Amount: ₹{(editRequest.newData.amount / 100).toLocaleString('en-IN')}</div>
+                          )}
+                          {editRequest.newData.paymentMode && (
+                            <div>Mode: {editRequest.newData.paymentMode}</div>
+                          )}
+                          {editRequest.newData.referenceNumber && (
+                            <div>Ref: {editRequest.newData.referenceNumber}</div>
+                          )}
+                        </div>
+                      ) : editRequest.entityType === 'communication' && editRequest.newData ? (
+                        <div className="text-sm space-y-0.5">
+                          {editRequest.newData.outcome && (
+                            <div>Outcome: {editRequest.newData.outcome}</div>
+                          )}
+                          {editRequest.newData.content && (
+                            <div className="truncate max-w-[200px]" title={editRequest.newData.content}>
+                              {editRequest.newData.content}
+                            </div>
+                          )}
+                        </div>
+                      ) : 'N/A'}
+                    </TableCell>
+                    <TableCell>{editRequest.requestedByName || 'N/A'}</TableCell>
+                    <TableCell>
+                      {editRequest.createdAt ? format(new Date(editRequest.createdAt), "dd MMM yyyy") : 'N/A'}
+                    </TableCell>
+                    <TableCell>
+                      <div className="max-w-[200px] truncate" title={editRequest.editReason}>
+                        {editRequest.editReason || 'No reason provided'}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-center">
+                      <div className="flex gap-2 justify-center">
+                        <Button
+                          size="sm"
+                          onClick={async () => {
+                            setProcessingId(editRequest.id);
+                            try {
+                              const response = await fetch(`/api/edits/${editRequest.id}/approve`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                credentials: "include",
+                              });
+                              if (response.ok) {
+                                toast({
+                                  title: "Edit Approved",
+                                  description: "The edit request has been approved successfully.",
+                                });
+                                queryClient.invalidateQueries({ queryKey: ["/api/edits/pending"] });
+                                queryClient.invalidateQueries({ queryKey: ["/api/approvals/history"] });
+                                queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+                              } else {
+                                const error = await response.json();
+                                toast({
+                                  title: "Error",
+                                  description: error.error || "Failed to approve edit request",
+                                  variant: "destructive",
+                                });
+                              }
+                            } catch (error) {
+                              toast({
+                                title: "Error",
+                                description: "Failed to approve edit request",
+                                variant: "destructive",
+                              });
+                            } finally {
+                              setProcessingId(null);
+                            }
+                          }}
+                          disabled={processingId === editRequest.id}
+                          className="bg-green-600 hover:bg-green-700 text-white"
+                        >
+                          <CheckCircle className="h-4 w-4 mr-1" />
+                          Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={async () => {
+                            setProcessingId(editRequest.id);
+                            try {
+                              const response = await fetch(`/api/edits/${editRequest.id}/reject`, {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                credentials: "include",
+                              });
+                              if (response.ok) {
+                                toast({
+                                  title: "Edit Rejected",
+                                  description: "The edit request has been rejected.",
+                                });
+                                queryClient.invalidateQueries({ queryKey: ["/api/edits/pending"] });
+                                queryClient.invalidateQueries({ queryKey: ["/api/approvals/history"] });
+                              } else {
+                                const error = await response.json();
+                                toast({
+                                  title: "Error",
+                                  description: error.error || "Failed to reject edit request",
+                                  variant: "destructive",
+                                });
+                              }
+                            } catch (error) {
+                              toast({
+                                title: "Error",
+                                description: "Failed to reject edit request",
+                                variant: "destructive",
+                              });
+                            } finally {
+                              setProcessingId(null);
+                            }
+                          }}
+                          disabled={processingId === editRequest.id}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </CardContent>
         </Card>
-      ) : (
+      </div>
+    )}
+
+    {/* Approved Edit Requests */}
+    {approvalsHistory.edits?.filter((e: any) => e.status === 'approved').length > 0 && (
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">Approved Edit Requests</h3>
         <Card>
           <CardContent className="p-0">
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[60px]">S.No</TableHead>
                   <TableHead className="w-[100px]">Type</TableHead>
                   <TableHead>Details</TableHead>
                   <TableHead>Requested By</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Reason</TableHead>
                   <TableHead className="text-center">Status</TableHead>
-                  <TableHead className="text-center min-w-[200px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredAndSortedEdits.map((editRequest: any) => (
+                {filteredAndSortedEdits
+                  .filter((e: any) => e.status === 'approved')
+                  .map((editRequest: any, index: number) => (
                   <TableRow key={editRequest.id}>
+                    <TableCell className="font-medium">{index + 1}</TableCell>
                     <TableCell>
                       <Badge variant={editRequest.entityType === 'payment' ? 'default' : 'secondary'}>
                         {editRequest.entityType === 'payment' ? 'Payment' : 'Comm'}
@@ -716,113 +899,9 @@ export default function UserManagement() {
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
-                      {editRequest.status === 'pending' && (
-                        <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-                          Pending
-                        </Badge>
-                      )}
-                      {editRequest.status === 'approved' && (
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
-                          Approved
-                        </Badge>
-                      )}
-                      {editRequest.status === 'rejected' && (
-                        <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
-                          Rejected
-                        </Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-center">
-                      {editRequest.status === 'pending' && (
-                        <div className="flex gap-2 justify-center">
-                          <Button
-                            size="sm"
-                            onClick={async () => {
-                              setProcessingId(editRequest.id);
-                              try {
-                                const response = await fetch(`/api/edits/${editRequest.id}/approve`, {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  credentials: "include",
-                                });
-                                if (response.ok) {
-                                  toast({
-                                    title: "Edit Approved",
-                                    description: "The edit request has been approved successfully.",
-                                  });
-                                  queryClient.invalidateQueries({ queryKey: ["/api/edits/pending"] });
-                                  queryClient.invalidateQueries({ queryKey: ["/api/approvals/history"] });
-                                  queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
-                                } else {
-                                  const error = await response.json();
-                                  toast({
-                                    title: "Error",
-                                    description: error.error || "Failed to approve edit request",
-                                    variant: "destructive",
-                                  });
-                                }
-                              } catch (error) {
-                                toast({
-                                  title: "Error",
-                                  description: "Failed to approve edit request",
-                                  variant: "destructive",
-                                });
-                              } finally {
-                                setProcessingId(null);
-                              }
-                            }}
-                            disabled={processingId === editRequest.id}
-                            className="bg-green-600 hover:bg-green-700 text-white"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1" />
-                            Approve
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={async () => {
-                              setProcessingId(editRequest.id);
-                              try {
-                                const response = await fetch(`/api/edits/${editRequest.id}/reject`, {
-                                  method: "POST",
-                                  headers: { "Content-Type": "application/json" },
-                                  credentials: "include",
-                                });
-                                if (response.ok) {
-                                  toast({
-                                    title: "Edit Rejected",
-                                    description: "The edit request has been rejected.",
-                                  });
-                                  queryClient.invalidateQueries({ queryKey: ["/api/edits/pending"] });
-                                  queryClient.invalidateQueries({ queryKey: ["/api/approvals/history"] });
-                                } else {
-                                  const error = await response.json();
-                                  toast({
-                                    title: "Error",
-                                    description: error.error || "Failed to reject edit request",
-                                    variant: "destructive",
-                                  });
-                                }
-                              } catch (error) {
-                                toast({
-                                  title: "Error",
-                                  description: "Failed to reject edit request",
-                                  variant: "destructive",
-                                });
-                              } finally {
-                                setProcessingId(null);
-                              }
-                            }}
-                            disabled={processingId === editRequest.id}
-                          >
-                            <XCircle className="h-4 w-4 mr-1" />
-                            Reject
-                          </Button>
-                        </div>
-                      )}
-                      {editRequest.status !== 'pending' && (
-                        <span className="text-sm text-muted-foreground">-</span>
-                      )}
+                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                        Approved
+                      </Badge>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -830,11 +909,24 @@ export default function UserManagement() {
             </Table>
           </CardContent>
         </Card>
-      )}
-    </TabsContent>
+      </div>
+    )}
+
+    {approvalsHistory.edits?.length === 0 && (
+      <Card>
+        <CardContent className="p-12 text-center">
+          <Edit className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-xl font-semibold mb-2">No Edit Requests</h3>
+          <p className="text-muted-foreground">
+            No edit requests to display.
+          </p>
+        </CardContent>
+      </Card>
+    )}
+  </TabsContent>
   </Tabs>
 
-      {/* User Statistics */}
+  {/* User Statistics */}
       <Card>
         <CardHeader>
           <CardTitle>User Statistics</CardTitle>
