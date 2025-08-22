@@ -1,0 +1,17 @@
+﻿{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Program",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "program": "C:\\Program Files\\nodejs",
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "console": "externalTerminal"
+    }
+  ],
+  "compounds": []
+}

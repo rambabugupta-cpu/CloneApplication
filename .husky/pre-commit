@@ -1,0 +1,15 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+echo "[husky] Running pre-commit hooks..."
+
+# Lint & autofix staged TS/TSX files first (lint-staged config in package.json)
+npx lint-staged || exit 1
+
+# Optional: ensure migrations & seed stay up to date (skip if set)
+if [ "$SKIP_AUTO_MIGRATE" != "true" ]; then
+  echo "[husky] Running db bootstrap (quick)"
+  npm run db:bootstrap || exit 1
+fi
+
+echo "[husky] Pre-commit passed"

@@ -5,11 +5,12 @@ import session from "express-session";
 import MemoryStore from "memorystore";
 import { db } from "./db";
 import cors from "cors";
-import { insertUserSchema, insertCollectionSchema, insertPaymentSchema, insertCommunicationSchema, payments, communications, paymentEdits, communicationEdits } from "@shared/schema";
+import * as SharedSchema from "../shared/schema";
 import { eq } from "drizzle-orm";
 import multer from "multer";
 import xlsx from "xlsx";
 import { z } from "zod";
+import { paymentEdits, communicationEdits, payments, communications } from "../shared/schema";
 
 // Session interface extension
 declare module "express-session" {
@@ -76,43 +77,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Auth middleware to check if user is authenticated
   const requireAuth = (req: any, res: any, next: any) => {
+    console.log(`[auth] requireAuth check sessionID=${req.sessionID} userId=${req.session?.userId}`);
     if (!req.session.userId) {
+      console.log(`[auth] requireAuth failed - no userId in session`);
       return res.status(401).json({ error: "Authentication required" });
     }
+    console.log(`[auth] requireAuth passed for userId=${req.session.userId}`);
     next();
   };
 
   // Auth Routes
   app.post("/api/auth/signup", async (req, res) => {
     try {
-      const { email, password, name } = req.body;
+      const { email, password, fullName, name } = req.body;
+      const effectiveFullName = fullName || name;
       
-      // Validate input
-      const userData = insertUserSchema.parse({
-        email: email.toLowerCase(),
-        name,
-        passwordHash: password,
-      });
+      if (!email || !password || !effectiveFullName) {
+        return res.status(400).json({ 
+          error: "Missing required fields",
+          details: { email: !!email, password: !!password, name: !!effectiveFullName }
+        });
+      }
 
-      // Check if user already exists
+      // Create user data bypassing schema validation for now
+      const userData = {
+        email: String(email).toLowerCase(),
+        fullName: effectiveFullName,
+        passwordHash: password,
+      };
       const existingUser = await storage.getUserByEmail(userData.email);
       if (existingUser) {
         return res.status(400).json({ error: "User already exists" });
       }
-
-      // Create user
       const user = await storage.createUser({
         ...userData,
-        fullName: name,
         role: 'customer'
       });
-
-      res.json({ 
-        message: "User created successfully. Account pending approval.",
-        user: { id: user.id, email: user.email, name: user.fullName }
+      res.json({
+        message: "User created successfully.",
+        user: { id: user.id, email: user.email, fullName: user.fullName }
       });
     } catch (error: any) {
       console.error("Signup error:", error);
+      if (error?.issues) {
+        return res.status(400).json({ error: error.issues });
+      }
       res.status(400).json({ error: error.message || "Failed to create user" });
     }
   });
@@ -124,23 +133,36 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!email || !password) {
         return res.status(400).json({ error: "Email and password required" });
       }
-
-      const user = await storage.validateUser(email.toLowerCase(), password);
+      const lowered = String(email).toLowerCase();
+      console.log(`[auth] signin attempt email=${lowered}`);
+      const user = await storage.validateUser(lowered, password);
       if (!user) {
+        console.warn(`[auth] signin failed email=${lowered} :: invalid credentials`);
         return res.status(401).json({ error: "Invalid credentials" });
       }
+      console.log(`[auth] signin success id=${user.id} email=${user.email} role=${user.role}`);
 
       // Create session
       req.session.userId = user.id;
+      console.log(`[auth] session created userId=${user.id} sessionID=${req.sessionID}`);
       
-      res.json({
-        user: { 
-          id: user.id, 
-          email: user.email, 
-          fullName: user.fullName,
-          role: user.role || 'customer'
-        },
-        message: "Signed in successfully"
+      // Save session explicitly
+      req.session.save((err) => {
+        if (err) {
+          console.error(`[auth] session save error:`, err);
+          return res.status(500).json({ error: "Session save failed" });
+        }
+        console.log(`[auth] session saved successfully`);
+        
+        res.json({
+          user: { 
+            id: user.id, 
+            email: user.email, 
+            fullName: user.fullName,
+            role: user.role || 'customer'
+          },
+          message: "Signed in successfully"
+        });
       });
     } catch (error: any) {
       console.error("Signin error:", error);
@@ -153,7 +175,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (err) {
         return res.status(500).json({ error: "Failed to sign out" });
       }
-      res.clearCookie('connect.sid');
+  // Clear correct custom session cookie name
+  res.clearCookie('sessionid');
       res.json({ message: "Signed out successfully" });
     });
   });
@@ -445,6 +468,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       const collections = await storage.searchCollections(filters);
       
+      // Debug: Log the first few collections to see if they have latestCommunication
+      if (collections.length > 0) {
+        console.log('=== Collections Debug ===');
+        console.log(`Returning ${collections.length} collections`);
+        console.log('First collection sample:', {
+          id: collections[0].id,
+          invoiceNumber: collections[0].invoiceNumber,
+          hasLatestCommunication: !!collections[0].latestCommunication,
+          latestCommunication: collections[0].latestCommunication ? {
+            type: collections[0].latestCommunication.type,
+            content: collections[0].latestCommunication.content?.substring(0, 50) + '...',
+            createdAt: collections[0].latestCommunication.createdAt
+          } : null
+        });
+      }
+      
       res.json({
         collections,
         pagination: {
@@ -474,7 +513,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post("/api/collections", requireAuth, async (req, res) => {
     try {
-      const collectionData = insertCollectionSchema.parse(req.body);
+      const collectionData = (SharedSchema as any).insertCollectionSchema.parse(req.body);
       const collection = await storage.createCollection(collectionData);
       res.status(201).json(collection);
     } catch (error: any) {

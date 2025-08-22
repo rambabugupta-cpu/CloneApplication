@@ -1,0 +1,5 @@
+﻿# Environment variables for Application-Accounting
+# Set your database connection string here
+DATABASE_URL=postgres://user:password@localhost:5432/mydatabase?sslmode=disable
+# Force psql and any libpq client to NOT require SSL locally
+PGSSLMODE=disable

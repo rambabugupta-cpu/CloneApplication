@@ -1,0 +1,83 @@
+﻿/* Local database bootstrap & sanity script */
+import { Pool } from 'pg';
+import { execSync } from 'node:child_process';
+
+const REQUIRED_ENV = ['DATABASE_URL'];
+for (const key of REQUIRED_ENV) {
+  if (!process.env[key]) {
+    console.error(`[bootstrap] Missing ${key} in environment (.env)`);
+    process.exit(1);
+  }
+}
+
+const rawUrl = process.env.DATABASE_URL!;
+
+function parse(urlStr: string) {
+  try {
+    const u = new URL(urlStr);
+    return {
+      user: decodeURIComponent(u.username),
+      password: decodeURIComponent(u.password),
+      host: u.hostname,
+      port: parseInt(u.port || '5432', 10),
+      database: u.pathname.replace(/^\//, ''),
+      search: u.search,
+      protocol: u.protocol,
+      sslMode: (u.searchParams.get('sslmode') || '').toLowerCase(),
+    };
+  } catch (e) {
+    console.error('[bootstrap] Invalid DATABASE_URL:', e);
+    process.exit(1);
+  }
+}
+
+const info = parse(rawUrl);
+
+if ((info.host === 'localhost' || info.host === '127.0.0.1') && info.sslMode !== 'disable') {
+  console.log('[bootstrap] Adjusting connection to disable SSL for localhost');
+  if (!info.search.includes('sslmode=')) {
+    process.env.DATABASE_URL = rawUrl + (rawUrl.includes('?') ? '&' : '?') + 'sslmode=disable';
+  }
+  process.env.PGSSLMODE = 'disable';
+}
+
+async function ensureConnect() {
+  const pool = new Pool({ connectionString: process.env.DATABASE_URL!, ssl: false });
+  try {
+    const res = await pool.query('select 1 as ok');
+    console.log('[bootstrap] Database connection OK:', res.rows[0]);
+    await pool.end();
+  } catch (e: any) {
+    if (/SSL/.test(e.message)) {
+      console.error('[bootstrap] SSL error detected. Ensure sslmode=disable for local server or enable SSL on the server.');
+    }
+    console.error('[bootstrap] Connection failed:', e.message);
+    process.exit(1);
+  }
+}
+
+function run(cmd: string) {
+  console.log(`[bootstrap] $ ${cmd}`);
+  execSync(cmd, { stdio: 'inherit' });
+}
+
+async function runDrizzlePush() {
+  try {
+    run('npx drizzle-kit push');
+  } catch (e) {
+    console.error('[bootstrap] drizzle-kit push failed');
+    process.exit(1);
+  }
+}
+
+async function seedIfEmpty() {
+  // Seeding skipped in TypeScript bootstrap (runtime schema resolution issues in ts-node without build)
+  console.log('[bootstrap] Seed step skipped in TS mode');
+}
+
+(async () => {
+  await ensureConnect();
+  await runDrizzlePush();
+  await seedIfEmpty();
+  console.log('[bootstrap] Complete');
+})();

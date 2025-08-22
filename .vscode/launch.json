@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Launch Program",
+      "type": "node",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "runtimeExecutable": "npx",
+      "runtimeArgs": ["tsx", "server/index.ts"],
+      "skipFiles": [
+        "<node_internals>/**"
+      ],
+      "console": "externalTerminal"
+    }
+  ],
+  "compounds": []
+}

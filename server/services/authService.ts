@@ -1,6 +1,6 @@
 import bcrypt from "bcrypt";
 import { db } from "../db";
-import { users, customers, type User, type InsertUser } from "@shared/schema";
+import { users, customers, type User, type InsertUser } from "../../shared/schema";
 import { eq } from "drizzle-orm";
 
 export class AuthService {

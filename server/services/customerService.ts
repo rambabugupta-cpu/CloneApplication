@@ -1,6 +1,6 @@
 import { db } from "../db";
-import { customers } from "@shared/schema";
-import { eq, sql } from "drizzle-orm";
+import { customers } from "../../shared/schema";
+import { eq, like, and, desc, sql } from "drizzle-orm";
 
 export class CustomerService {
   async getAllCustomers(limit: number = 100, offset: number = 0) {

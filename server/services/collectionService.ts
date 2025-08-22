@@ -7,7 +7,7 @@ import {
   importBatches,
   type Collection, 
   type InsertCollection 
-} from "@shared/schema";
+} from "../../shared/schema";
 import { eq, and, or, gte, lte, desc, asc, sql, inArray } from "drizzle-orm";
 
 export class CollectionService {
@@ -237,7 +237,7 @@ export class CollectionService {
     if (results.length === 0) return results;
 
     // Batch fetch communications and payments more efficiently
-    const collectionIds = results.map(r => r.id);
+    const collectionIds = results.map((r: any) => r.id);
 
     // Single query for latest communications
     const latestComms = await db
@@ -259,7 +259,8 @@ export class CollectionService {
 
     const latestCommsMap = new Map();
     latestComms.forEach((comm: any) => {
-      if (comm.rn === 1) {
+      // Convert rn to number for comparison (PostgreSQL returns it as string)
+      if (parseInt(comm.rn) === 1) {
         latestCommsMap.set(comm.collectionId, comm);
       }
     });
@@ -285,13 +286,14 @@ export class CollectionService {
 
     const latestPaymentsMap = new Map();
     latestPayments.forEach((payment: any) => {
-      if (payment.rn === 1) {
+      // Convert rn to number for comparison (PostgreSQL returns it as string)
+      if (parseInt(payment.rn) === 1) {
         latestPaymentsMap.set(payment.collectionId, payment);
       }
     });
 
     // Combine results
-    return results.map(collection => {
+    return results.map((collection: any) => {
       const latestComm = latestCommsMap.get(collection.id);
       const latestPayment = latestPaymentsMap.get(collection.id);
 

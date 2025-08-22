@@ -116,10 +116,26 @@ export default function Collections() {
   const [selectedCommunicationForDelete, setSelectedCommunicationForDelete] = useState<any>(null);
   const [deleteReason, setDeleteReason] = useState("");
 
-  const { data: collections, isLoading } = useQuery({
+  // Helper function to refresh collections data
+  const refreshCollections = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+    queryClient.refetchQueries({ queryKey: ["/api/collections", statusFilter, searchTerm] });
+  };
+
+  const { data: collectionsResponse, isLoading } = useQuery({
     queryKey: ["/api/collections", statusFilter, searchTerm],
+    queryFn: async () => {
+      const params = new URLSearchParams();
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (searchTerm) params.set("search", searchTerm);
+      
+      const url = `/api/collections${params.toString() ? `?${params.toString()}` : ''}`;
+      return await apiRequest(url);
+    },
     enabled: !!user,
   });
+
+  const collections = collectionsResponse?.collections || [];
 
   // Debug: Log collections data
   useEffect(() => {
@@ -211,7 +227,7 @@ export default function Collections() {
         title: "Communication Added",
         description: "Communication log has been added successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/collections"] });
+      refreshCollections();
       setShowCommunicationDialog(false);
       communicationForm.reset();
     },
@@ -390,7 +406,7 @@ export default function Collections() {
     );
   };
 
-  const filteredCollections = (collections as any[])?.filter((collection: any) => {
+  const filteredCollections = (collections || []).filter((collection: any) => {
     const matchesSearch = 
       collection.customerName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       collection.customerPhone?.includes(searchTerm) ||

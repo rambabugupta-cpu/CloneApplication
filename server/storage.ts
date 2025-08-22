@@ -35,7 +35,8 @@ export class DatabaseStorage {
     try {
       const user = await authService.login(email, password);
       return user;
-    } catch {
+    } catch (e: any) {
+      console.warn(`[auth] validateUser failed email=${email} :: ${e.message}`);
       return undefined;
     }
   }

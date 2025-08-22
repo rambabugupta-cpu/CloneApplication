@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { communications } from "@shared/schema";
+import { communications, collections } from "../../shared/schema";
 import { eq } from "drizzle-orm";
 
 export const communicationService = {
@@ -28,7 +28,6 @@ export const communicationService = {
       // If customerId is not provided, get it from the collection
       let customerId = data.customerId;
       if (!customerId && data.collectionId) {
-        const { collections } = await import("@shared/schema");
         const collection = await db.select().from(collections).where(eq(collections.id, data.collectionId)).limit(1);
         if (collection.length > 0) {
           customerId = collection[0].customerId;
