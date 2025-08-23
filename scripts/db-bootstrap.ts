@@ -39,7 +39,7 @@ function parse(urlStr: string): ConnInfo {
 
 let info = parse(originalUrl);
 
-// Force disable SSL for local dev if not already disabled
+// Force disable SSL only for local dev; keep sslmode=require for hosted (e.g., Supabase)
 if ((info.host === 'localhost' || info.host === '127.0.0.1') && info.sslMode !== 'disable') {
   if (!info.search.includes('sslmode=')) {
     originalUrl += (originalUrl.includes('?') ? '&' : '?') + 'sslmode=disable';

@@ -24,6 +24,17 @@ export default defineConfig({
     },
   },
   root: path.resolve(import.meta.dirname, "client"),
+  server: {
+    port: 5173,
+    strictPort: true,
+    proxy: {
+      "/api": {
+        target: process.env.VITE_API_ORIGIN || "http://localhost:5000",
+        changeOrigin: true,
+        secure: false,
+      },
+    },
+  },
   build: {
     outDir: path.resolve(import.meta.dirname, "dist/public"),
     emptyOutDir: true,

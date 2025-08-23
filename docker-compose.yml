@@ -1,0 +1,26 @@
+version: '3.9'
+services:
+  backend:
+    build: .
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379
+      - SESSION_SECRET=${SESSION_SECRET:-change-me}
+    ports:
+      - "5000:5000"
+    depends_on:
+      - redis
+  worker:
+    build: .
+    command: node dist/server/worker.js
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"

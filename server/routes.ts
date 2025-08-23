@@ -3,6 +3,24 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import session from "express-session";
 import MemoryStore from "memorystore";
+// Optional Redis session store if REDIS_URL provided
+let RedisStore: any = null;
+let redisClient: any = null;
+if (process.env.REDIS_URL) {
+  try {
+    // Lazy require to avoid hard dependency if not configured
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const connectRedis = require('connect-redis');
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const { createClient } = require('redis');
+    redisClient = createClient({ url: process.env.REDIS_URL });
+    redisClient.on('error', (err: any) => console.error('[redis] error', err));
+    redisClient.connect?.();
+    RedisStore = connectRedis(session);
+  } catch (e) {
+    console.warn('[session] Redis not available, falling back to MemoryStore');
+  }
+}
 import { db } from "./db";
 import cors from "cors";
 import * as SharedSchema from "../shared/schema";
@@ -11,6 +29,7 @@ import multer from "multer";
 import xlsx from "xlsx";
 import { z } from "zod";
 import { paymentEdits, communicationEdits, payments, communications } from "../shared/schema";
+import { Storage } from '@google-cloud/storage';
 
 // Session interface extension
 declare module "express-session" {
@@ -46,32 +65,34 @@ const upload = multer({
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Configure CORS for proper credential handling
+  const frontendOrigin = process.env.FRONTEND_ORIGIN;
   app.use(cors({
-    origin: true, // Allow requests from same origin
-    credentials: true, // Allow credentials (cookies)
+    origin: frontendOrigin ? [frontendOrigin] : true,
+    credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   }));
+  
 
-  // Create Memory store for sessions (temporary solution)
+  // Create Memory store for sessions (fallback solution)
   const MemoryStoreSession = MemoryStore(session);
   
   // Configure session middleware with memory store
   app.use(session({
-    store: new MemoryStoreSession({
-      checkPeriod: 86400000 // prune expired entries every 24h
-    }),
+    store: RedisStore && redisClient
+      ? new RedisStore({ client: redisClient, prefix: 'sess:' })
+      : new MemoryStoreSession({ checkPeriod: 86400000 }),
     secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
     resave: false,
     saveUninitialized: false,
     name: 'sessionid', // Change name to avoid conflicts
     rolling: true, // Reset expiry on each request
     cookie: {
-      secure: false, // Set to true in production with HTTPS
+      secure: process.env.NODE_ENV === 'production' || !!frontendOrigin, // HTTPS in prod or when cross-site
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-      sameSite: 'lax', // Important for modern browsers
-      path: '/', // Ensure cookie path is correct
+      sameSite: frontendOrigin ? 'none' : 'lax', // allow cross-site if using separate origin
+      path: '/',
     },
   }));
 
@@ -85,6 +106,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     console.log(`[auth] requireAuth passed for userId=${req.session.userId}`);
     next();
   };
+
+  // Signed URLs for uploads (GCS)
+  app.post('/api/uploads/sign', requireAuth, async (req, res) => {
+    try {
+      const { name, type } = req.body || {};
+      if (!process.env.GCS_BUCKET) return res.status(400).json({ error: 'GCS not configured' });
+      const storage = new Storage({ keyFilename: process.env.GCS_KEYFILE });
+      const bucket = storage.bucket(process.env.GCS_BUCKET);
+      const file = bucket.file(name);
+      const [url] = await file.getSignedUrl({ action: 'write', expires: Date.now() + 5 * 60 * 1000, contentType: type });
+      res.json({ url });
+    } catch (e: any) {
+      console.error('sign error', e);
+      res.status(500).json({ error: 'Failed to sign upload' });
+    }
+  });
 
   // Auth Routes
   app.post("/api/auth/signup", async (req, res) => {

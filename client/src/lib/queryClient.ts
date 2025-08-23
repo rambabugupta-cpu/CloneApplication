@@ -1,8 +1,10 @@
 import { QueryClient } from "@tanstack/react-query";
 
 // API request utility with authentication
+const base = import.meta.env.VITE_API_BASE || '';
 export const apiRequest = async (url: string, options: RequestInit = {}) => {
-  const response = await fetch(url, {
+  const fullUrl = url.startsWith('http') ? url : `${base}${url}`;
+  const response = await fetch(fullUrl, {
     ...options,
     credentials: 'include', // Include cookies for session
     headers: {

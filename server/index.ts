@@ -6,8 +6,21 @@ import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import morgan from 'morgan';
+import * as Sentry from '@sentry/node';
 
 const app = express();
+
+// Sentry init (optional) with v7/v8 compatibility
+if (process.env.SENTRY_DSN) {
+  Sentry.init({ dsn: process.env.SENTRY_DSN });
+  const S: any = Sentry as any;
+  if (S.Handlers?.requestHandler) {
+    app.use(S.Handlers.requestHandler());
+  } else if (S.setupExpressRequestHandler) {
+    app.use(S.setupExpressRequestHandler());
+  }
+}
 
 // Global unhandled rejection logging (non-fatal unless desired)
 process.on('unhandledRejection', (reason) => {
@@ -37,6 +50,7 @@ if (process.env.NODE_ENV !== 'production' && process.env.AUTO_MIGRATE !== 'false
 
 // Enable compression for better performance
 app.use(compression());
+app.use(morgan('tiny'));
 
 // Optimize JSON parsing
 app.use(express.json({ limit: '10mb' }));
@@ -89,16 +103,20 @@ import { seedDatabase } from "./seed";
     const message = err.message || "Internal Server Error";
 
     res.status(status).json({ message });
+  if (process.env.SENTRY_DSN) Sentry.captureException(err);
     throw err;
   });
 
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+  const serveClient = process.env.SERVE_CLIENT !== 'false';
+  if (serveClient) {
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
+    }
   }
 
-  const port = 5000;
+  const port = Number(process.env.PORT || 5000);
   server.listen({
     port,
     host: "0.0.0.0",
