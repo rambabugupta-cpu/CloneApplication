@@ -164,3 +164,15 @@ All colors MUST be HSL.
     @apply bg-background text-foreground;
   }
 }
+
+@layer components {
+  /* Chart component styles - replacing inline styles */
+  .chart-indicator {
+    background-color: var(--indicator-color, currentColor);
+    border-color: var(--indicator-color, currentColor);
+  }
+  
+  .chart-color-indicator {
+    background-color: var(--chart-color, currentColor);
+  }
+}
