@@ -1,0 +1,431 @@
+import { db } from "../db";
+import { 
+  collections, 
+  customers, 
+  payments,
+  communications,
+  importBatches,
+  type Collection, 
+  type InsertCollection 
+} from "../../shared/schema";
+import { eq, and, or, gte, lte, desc, asc, sql, inArray } from "drizzle-orm";
+
+export class CollectionService {
+  // Cache for frequently accessed data
+  private static statusCache = new Map<string, string>();
+  private static agingCache = new Map<string, number>();
+
+  async createCollection(data: InsertCollection): Promise<Collection> {
+    const [collection] = await db.insert(collections).values({
+      ...data,
+      status: this.calculateStatus(data.outstandingAmount, data.originalAmount),
+      agingDays: this.calculateAgingDays(data.dueDate),
+    }).returning();
+
+    return collection;
+  }
+
+  async updateCollection(id: string, data: Partial<InsertCollection>): Promise<Collection> {
+    const updateData: any = {
+      ...data,
+      updatedAt: new Date(),
+    };
+
+    // Only recalculate if needed
+    if (data.outstandingAmount !== undefined || data.paidAmount !== undefined) {
+      const existing = await this.getCollectionById(id);
+      if (existing) {
+        const outstanding = data.outstandingAmount ?? existing.outstandingAmount;
+        const original = data.originalAmount ?? existing.originalAmount;
+        updateData.status = this.calculateStatus(outstanding, original);
+      }
+    }
+
+    const [updated] = await db.update(collections)
+      .set(updateData)
+      .where(eq(collections.id, id))
+      .returning();
+
+    if (!updated) {
+      throw new Error("Collection not found");
+    }
+
+    // Clear cache for this collection
+    CollectionService.statusCache.delete(id);
+    CollectionService.agingCache.delete(id);
+
+    return updated;
+  }
+
+  async getCollectionById(id: string): Promise<Collection | undefined> {
+    const [collection] = await db.select()
+      .from(collections)
+      .where(eq(collections.id, id))
+      .limit(1);
+
+    return collection;
+  }
+
+  async getCollectionsByCustomer(customerId: string): Promise<any[]> {
+    return await db.select({
+      id: collections.id,
+      customerId: collections.customerId,
+      invoiceNumber: collections.invoiceNumber,
+      invoiceDate: collections.invoiceDate,
+      dueDate: collections.dueDate,
+      originalAmount: collections.originalAmount,
+      outstandingAmount: collections.outstandingAmount,
+      paidAmount: collections.paidAmount,
+      status: collections.status,
+      agingDays: collections.agingDays,
+      promisedAmount: collections.promisedAmount,
+      promisedDate: collections.promisedDate,
+      lastFollowupDate: collections.lastFollowupDate,
+      nextFollowupDate: collections.nextFollowupDate,
+      assignedTo: collections.assignedTo,
+      escalationLevel: collections.escalationLevel,
+      disputeRaisedAt: collections.disputeRaisedAt,
+      disputeReason: collections.disputeReason,
+      notes: collections.notes,
+      createdAt: collections.createdAt,
+      updatedAt: collections.updatedAt,
+      importBatchId: collections.importBatchId,
+      importFileName: importBatches.fileName,
+      importDate: importBatches.createdAt,
+      importedBy: importBatches.importedBy,
+    })
+      .from(collections)
+      .leftJoin(importBatches, eq(collections.importBatchId, importBatches.id))
+      .where(eq(collections.customerId, customerId))
+      .orderBy(desc(collections.dueDate))
+      .limit(50); // Add pagination limit
+  }
+
+  async getCollectionsByStatus(status: string): Promise<Collection[]> {
+    return await db.select()
+      .from(collections)
+      .where(eq(collections.status, status as any))
+      .orderBy(desc(collections.dueDate));
+  }
+
+  async getOverdueCollections(): Promise<Collection[]> {
+    const today = new Date();
+    
+    return await db.select()
+      .from(collections)
+      .where(
+        and(
+          eq(collections.status, "overdue" as any),
+          lte(collections.dueDate, today.toISOString() as any)
+        )
+      )
+      .orderBy(asc(collections.dueDate));
+  }
+
+  async getCollectionsForStaff(staffId: string): Promise<any[]> {
+    return await db.select({
+      id: collections.id,
+      customerId: collections.customerId,
+      invoiceNumber: collections.invoiceNumber,
+      invoiceDate: collections.invoiceDate,
+      dueDate: collections.dueDate,
+      originalAmount: collections.originalAmount,
+      outstandingAmount: collections.outstandingAmount,
+      paidAmount: collections.paidAmount,
+      status: collections.status,
+      agingDays: collections.agingDays,
+      promisedAmount: collections.promisedAmount,
+      promisedDate: collections.promisedDate,
+      lastFollowupDate: collections.lastFollowupDate,
+      nextFollowupDate: collections.nextFollowupDate,
+      assignedTo: collections.assignedTo,
+      escalationLevel: collections.escalationLevel,
+      disputeRaisedAt: collections.disputeRaisedAt,
+      disputeReason: collections.disputeReason,
+      notes: collections.notes,
+      createdAt: collections.createdAt,
+      updatedAt: collections.updatedAt,
+      importBatchId: collections.importBatchId,
+      // Import batch details
+      importFileName: importBatches.fileName,
+      importDate: importBatches.createdAt,
+      importedBy: importBatches.importedBy,
+    })
+      .from(collections)
+      .leftJoin(importBatches, eq(collections.importBatchId, importBatches.id))
+      .where(eq(collections.assignedTo, staffId))
+      .orderBy(desc(collections.dueDate));
+  }
+
+  async searchCollections(filters: {
+    status?: string;
+    assignedTo?: string;
+    customerId?: string;
+    fromDate?: Date;
+    toDate?: Date;
+    minAmount?: number;
+    maxAmount?: number;
+    limit?: number;
+    offset?: number;
+  }): Promise<any[]> {
+    const conditions = [];
+    const limit = filters.limit || 100;
+    const offset = filters.offset || 0;
+
+    // Build conditions efficiently
+    if (filters.status) conditions.push(eq(collections.status, filters.status as any));
+    if (filters.assignedTo) conditions.push(eq(collections.assignedTo, filters.assignedTo));
+    if (filters.customerId) conditions.push(eq(collections.customerId, filters.customerId));
+    if (filters.fromDate) conditions.push(gte(collections.dueDate, filters.fromDate.toISOString() as any));
+    if (filters.toDate) conditions.push(lte(collections.dueDate, filters.toDate.toISOString() as any));
+    if (filters.minAmount) conditions.push(gte(collections.outstandingAmount, filters.minAmount));
+    if (filters.maxAmount) conditions.push(lte(collections.outstandingAmount, filters.maxAmount));
+
+    // Use a more efficient query with proper joins
+    let query = db.select({
+      id: collections.id,
+      customerId: collections.customerId,
+      invoiceNumber: collections.invoiceNumber,
+      invoiceDate: collections.invoiceDate,
+      dueDate: collections.dueDate,
+      originalAmount: collections.originalAmount,
+      outstandingAmount: collections.outstandingAmount,
+      paidAmount: collections.paidAmount,
+      status: collections.status,
+      agingDays: collections.agingDays,
+      promisedAmount: collections.promisedAmount,
+      promisedDate: collections.promisedDate,
+      lastFollowupDate: collections.lastFollowupDate,
+      nextFollowupDate: collections.nextFollowupDate,
+      assignedTo: collections.assignedTo,
+      escalationLevel: collections.escalationLevel,
+      disputeRaisedAt: collections.disputeRaisedAt,
+      disputeReason: collections.disputeReason,
+      notes: collections.notes,
+      createdAt: collections.createdAt,
+      updatedAt: collections.updatedAt,
+      importBatchId: collections.importBatchId,
+      customerName: customers.primaryContactName,
+      customerCompany: customers.companyName,
+      customerPhone: customers.primaryPhone,
+      customerEmail: customers.primaryEmail,
+      customerCode: customers.customerCode,
+      customerAddress: sql<string>`CONCAT_WS(', ', 
+        NULLIF(${customers.addressLine1}, ''), 
+        NULLIF(${customers.addressLine2}, ''), 
+        NULLIF(${customers.city}, ''), 
+        NULLIF(${customers.state}, ''), 
+        NULLIF(${customers.pincode}, '')
+      )`,
+      importFileName: importBatches.fileName,
+      importDate: importBatches.createdAt,
+      importedBy: importBatches.importedBy,
+    })
+    .from(collections)
+    .leftJoin(customers, eq(collections.customerId, customers.id))
+    .leftJoin(importBatches, eq(collections.importBatchId, importBatches.id));
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as any;
+    }
+
+    const results = await query
+      .orderBy(desc(collections.dueDate))
+      .limit(limit)
+      .offset(offset);
+
+    if (results.length === 0) return results;
+
+    // Batch fetch communications and payments more efficiently
+    const collectionIds = results.map((r: any) => r.id);
+
+    // Single query for latest communications
+    const latestComms = await db
+      .select({
+        collectionId: communications.collectionId,
+        id: communications.id,
+        type: communications.type,
+        content: communications.content,
+        outcome: communications.outcome,
+        promisedAmount: communications.promisedAmount,
+        promisedDate: communications.promisedDate,
+        nextActionRequired: communications.nextActionRequired,
+        nextActionDate: communications.nextActionDate,
+        createdAt: communications.createdAt,
+        rn: sql<number>`ROW_NUMBER() OVER (PARTITION BY ${communications.collectionId} ORDER BY ${communications.createdAt} DESC)`,
+      })
+      .from(communications)
+      .where(inArray(communications.collectionId, collectionIds));
+
+    const latestCommsMap = new Map();
+    latestComms.forEach((comm: any) => {
+      // Convert rn to number for comparison (PostgreSQL returns it as string)
+      if (parseInt(comm.rn) === 1) {
+        latestCommsMap.set(comm.collectionId, comm);
+      }
+    });
+
+    // Single query for latest payments
+    const latestPayments = await db
+      .select({
+        collectionId: payments.collectionId,
+        amount: payments.amount,
+        paymentDate: payments.paymentDate,
+        paymentMode: payments.paymentMode,
+        status: payments.status,
+        createdAt: payments.createdAt,
+        rn: sql<number>`ROW_NUMBER() OVER (PARTITION BY ${payments.collectionId} ORDER BY ${payments.createdAt} DESC)`,
+      })
+      .from(payments)
+      .where(
+        and(
+          inArray(payments.collectionId, collectionIds),
+          eq(payments.status, "approved" as any)
+        )
+      );
+
+    const latestPaymentsMap = new Map();
+    latestPayments.forEach((payment: any) => {
+      // Convert rn to number for comparison (PostgreSQL returns it as string)
+      if (parseInt(payment.rn) === 1) {
+        latestPaymentsMap.set(payment.collectionId, payment);
+      }
+    });
+
+    // Combine results
+    return results.map((collection: any) => {
+      const latestComm = latestCommsMap.get(collection.id);
+      const latestPayment = latestPaymentsMap.get(collection.id);
+
+      return {
+        ...collection,
+        latestCommunication: latestComm || null,
+        lastPaymentDate: latestPayment?.paymentDate || null,
+        lastPaymentAmount: latestPayment?.amount || 0,
+        nextFollowupDate: latestComm?.nextActionDate || collection.nextFollowupDate,
+      };
+    });
+  }
+
+  async updatePaymentStatus(collectionId: string, paidAmount: number): Promise<void> {
+    const collection = await this.getCollectionById(collectionId);
+    if (!collection) {
+      throw new Error("Collection not found");
+    }
+
+    const newPaidAmount = collection.paidAmount + paidAmount;
+    const newOutstandingAmount = collection.originalAmount - newPaidAmount;
+
+    await this.updateCollection(collectionId, {
+      paidAmount: newPaidAmount,
+      outstandingAmount: newOutstandingAmount,
+    });
+  }
+
+  async assignToStaff(collectionId: string, staffId: string): Promise<void> {
+    await db.update(collections)
+      .set({
+        assignedTo: staffId,
+        updatedAt: new Date(),
+      })
+      .where(eq(collections.id, collectionId));
+  }
+
+  async updatePromise(collectionId: string, promisedAmount: number, promisedDate: Date): Promise<void> {
+    await db.update(collections)
+      .set({
+        promisedAmount,
+        promisedDate: promisedDate.toISOString() as any,
+        updatedAt: new Date(),
+      })
+      .where(eq(collections.id, collectionId));
+  }
+
+  async escalateCollection(collectionId: string): Promise<void> {
+    const collection = await this.getCollectionById(collectionId);
+    if (!collection) {
+      throw new Error("Collection not found");
+    }
+
+    await db.update(collections)
+      .set({
+        escalationLevel: (collection.escalationLevel || 0) + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(collections.id, collectionId));
+  }
+
+  async raiseDispute(collectionId: string, reason: string, userId: string): Promise<void> {
+    await db.update(collections)
+      .set({
+        disputeRaisedAt: new Date(),
+        disputeReason: reason,
+        status: "overdue" as const,
+        updatedAt: new Date(),
+      })
+      .where(eq(collections.id, collectionId));
+  }
+
+  async getDashboardStats(): Promise<{
+    totalOutstanding: number;
+    totalCollected: number;
+    overdueCount: number;
+    totalCount: number;
+    collectionRate: number;
+  }> {
+    // Use a single optimized query
+    const [stats] = await db.select({
+      totalOutstanding: sql<number>`COALESCE(SUM(${collections.outstandingAmount}), 0)`,
+      totalCollected: sql<number>`COALESCE(SUM(${collections.paidAmount}), 0)`,
+      overdueCount: sql<number>`COUNT(*) FILTER (WHERE ${collections.status} = 'overdue')`,
+      totalCount: sql<number>`COUNT(*)`,
+    }).from(collections);
+
+    const result = stats || {
+      totalOutstanding: 0,
+      totalCollected: 0,
+      overdueCount: 0,
+      totalCount: 0,
+    };
+
+    const total = result.totalOutstanding + result.totalCollected;
+    const collectionRate = total > 0 ? (result.totalCollected / total) * 100 : 0;
+
+    return { ...result, collectionRate };
+  }
+
+  private calculateStatus(outstanding: number, original: number): "pending" | "partial" | "paid" | "overdue" {
+    if (outstanding === 0) return "paid";
+    if (outstanding < original) return "partial";
+    
+    return "pending";
+  }
+
+  private calculateAgingDays(dueDate: string | Date): number {
+    const due = new Date(dueDate);
+    const today = new Date();
+    const diffTime = today.getTime() - due.getTime();
+    return Math.max(0, Math.floor(diffTime / (1000 * 60 * 60 * 24)));
+  }
+
+  async batchUpdateStatus(): Promise<void> {
+    const today = new Date().toISOString();
+
+    // Single query to update overdue collections
+    await db.update(collections)
+      .set({
+        status: "overdue" as any,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          lte(collections.dueDate, today as any),
+          inArray(collections.status, ["pending", "partial"] as any),
+        )
+      );
+
+    // Clear caches
+    CollectionService.statusCache.clear();
+    CollectionService.agingCache.clear();
+  }
+}

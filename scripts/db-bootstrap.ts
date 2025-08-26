@@ -124,7 +124,7 @@ function runDrizzlePush() {
 async function seed() {
   try {
     // Import TypeScript directly (tsx runtime executes it). Use explicit extension.
-    const seedMod: any = await import('../server/seed.ts');
+    const seedMod: any = await import('../backend/seed.ts');
     if (seedMod.seedDatabase) {
       console.log('[bootstrap] Seeding (idempotent)');
       await seedMod.seedDatabase();

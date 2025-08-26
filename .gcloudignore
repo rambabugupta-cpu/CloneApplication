@@ -1,0 +1,98 @@
+# This file tells gcloud which files and directories to ignore when
+# deploying. A comprehensive ignore file results in faster and more
+# reliable deployments.
+
+# The Dockerfile is essential for building the container on Cloud Build.
+!Dockerfile
+
+# Core application source code. These are the files needed to build and
+# run the application.
+!/package.json
+!/package-lock.json
+!/tsconfig.json
+!/vite.config.ts
+!/tailwind.config.ts
+!/postcss.config.js
+!/components.json
+!/eslint.config.js
+!/server/
+!/client/
+!/shared/
+!/types/
+
+# --- IGNORE EVERYTHING BELOW ---
+
+# Node.js dependencies, which should be installed fresh by Cloud Build.
+node_modules/
+
+# Git repository files.
+.git/
+.gitignore
+.gitattributes
+
+# IDE and editor configuration files.
+.vscode/
+.idea/
+.vs/
+*.suo
+*.user
+*.sln
+*.esproj
+
+# Local environment configuration. Secrets should be managed in Secret
+# Manager, not committed to the repository.
+.env
+.env.*
+!/.env.example
+
+# Logs and temporary files.
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Operating System generated files.
+.DS_Store
+Thumbs.db
+
+# Build output and caches. These are generated during the build process.
+dist/
+obj/
+build/
+.npm/
+.yarn/cache
+.pnpm-store/
+
+# Test reports and coverage data.
+coverage/
+.nyc_output/
+
+# Husky git hooks. Not needed in the cloud build environment.
+.husky/
+
+# Executables and archives that shouldn't be in source control.
+ngrok.exe
+ngrok.zip
+
+# Local container setup.
+docker-compose.yml
+cloudbuild.yaml
+
+# Documentation and sample files not needed for the final application.
+CHANGELOG.md
+README.md
+sample_import.*
+attached_assets/
+*.txt
+
+# SQL files that are not part of the runtime application.
+reset-db.sql
+
+# Scripts that are for local development or one-off tasks.
+/scripts/
+check-users.cjs
+check-users.js
+push-schema.js
+test-*.cjs

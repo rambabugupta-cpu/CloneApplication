@@ -5,7 +5,7 @@ dotenv.config();
 import express, { type Request, Response, NextFunction } from "express";
 import compression from "compression";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { setupVite, serveStatic, log } from "../backend/vite";
 import morgan from 'morgan';
 import * as Sentry from '@sentry/node';
 
@@ -86,7 +86,7 @@ app.use((req, res, next) => {
   next();
 });
 
-import { seedDatabase } from "./seed";
+import { seedDatabase } from "../backend/seed";
 
 (async () => {
   // Keep existing seed (idempotent) – optional since bootstrap already seeds

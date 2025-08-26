@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage } from "../backend/storage";
 import session from "express-session";
 import MemoryStore from "memorystore";
 // Optional Redis session store if REDIS_URL provided
@@ -21,7 +21,7 @@ if (process.env.REDIS_URL) {
     console.warn('[session] Redis not available, falling back to MemoryStore');
   }
 }
-import { db } from "./db";
+import { db, pool } from "../backend/db";
 import cors from "cors";
 import * as SharedSchema from "../shared/schema";
 import { eq } from "drizzle-orm";
@@ -66,8 +66,12 @@ const upload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Configure CORS for proper credential handling
   const frontendOrigin = process.env.FRONTEND_ORIGIN;
+  // Allow multiple origins via comma-separated env (e.g., "https://site.web.app,https://rbgconstruction.in")
+  const allowedOrigins = frontendOrigin
+    ? frontendOrigin.split(',').map((s) => s.trim()).filter(Boolean)
+    : undefined;
   app.use(cors({
-    origin: frontendOrigin ? [frontendOrigin] : true,
+    origin: allowedOrigins ? allowedOrigins : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -95,6 +99,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       path: '/',
     },
   }));
+
+  // Lightweight health endpoint (no auth)
+  app.get('/api/health', async (_req, res) => {
+    try {
+      const status: Record<string, any> = {
+        ok: true,
+        uptime: process.uptime(),
+        ts: Date.now(),
+        env: process.env.NODE_ENV || 'development',
+      };
+      try {
+        await pool.query('SELECT 1');
+        status.db = 'ok';
+      } catch (e: any) {
+        status.db = 'error';
+        status.dbError = e?.message || 'db ping failed';
+      }
+      res.json(status);
+    } catch (e: any) {
+      res.status(500).json({ ok: false, error: e?.message || 'health check failed' });
+    }
+  });
 
   // Auth middleware to check if user is authenticated
   const requireAuth = (req: any, res: any, next: any) => {
@@ -1041,7 +1067,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Edit APIs - Payment and Communication Edits with Approval Workflow
-  const { editService } = await import("./services/editService");
+  const { editService } = await import("../backend/services/editService");
   
   // Create payment edit request
   app.post("/api/payments/:id/edit", requireAuth, async (req, res) => {
@@ -1238,7 +1264,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get payment details by ID
   app.get("/api/payments/:id", requireAuth, async (req, res) => {
     try {
-      const { paymentService } = await import("./services/paymentService");
+      const { paymentService } = await import("../backend/services/paymentService");
       const payment = await paymentService.getPaymentById(req.params.id);
       
       if (!payment) {
@@ -1254,7 +1280,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Get communication by ID
   app.get("/api/communications/:id", requireAuth, async (req, res) => {
     try {
-      const { communicationService } = await import("./services/communicationService");
+      const { communicationService } = await import("../backend/services/communicationService");
       const communication = await communicationService.getCommunicationById(req.params.id);
       
       if (!communication) {
