@@ -1,0 +1,33 @@
+name: Deploy to GCP
+on:
+  push:
+    branches: [main]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - name: Install dependencies
+        run: npm install
+    # Example: Use Codespaces secrets for GCP authentication
+    # - name: Authenticate to Google Cloud
+    #   run: echo "$GCP_SERVICE_ACCOUNT_KEY" > ${HOME}/gcp-key.json
+    #   env:
+    #     GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+    # Example: Deploy to GCP (replace with your actual command)
+    # - name: Deploy to GCP
+    #   run: gcloud app deploy --quiet
+  # Example: Use Codespaces secrets for GCP authentication
+  # - name: Authenticate to Google Cloud
+  #   run: echo "$GCP_SERVICE_ACCOUNT_KEY" > ${HOME}/gcp-key.json
+  #   env:
+  #     GCP_SERVICE_ACCOUNT_KEY: ${{ secrets.GCP_SERVICE_ACCOUNT_KEY }}
+
+  # Example: Deploy to GCP (replace with your actual command)
+  # - name: Deploy to GCP
+  #   run: gcloud app deploy --quiet
