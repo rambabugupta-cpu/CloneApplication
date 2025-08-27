@@ -1,24 +1,9 @@
 import { QueryClient } from "@tanstack/react-query";
+import { apiClient } from "../../../frontend/src/lib/apiClient";
 
-// API request utility with authentication
-const base = import.meta.env.VITE_API_BASE || '';
+// Export the enhanced API client for backward compatibility
 export const apiRequest = async (url: string, options: RequestInit = {}) => {
-  const fullUrl = url.startsWith('http') ? url : `${base}${url}`;
-  const response = await fetch(fullUrl, {
-    ...options,
-    credentials: 'include', // Include cookies for session
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Network error' }));
-    throw new Error(error.error || 'Request failed');
-  }
-
-  return response.json();
+  return apiClient.request(url, options);
 };
 
 export const queryClient = new QueryClient({
@@ -29,10 +14,17 @@ export const queryClient = new QueryClient({
         if (typeof url !== 'string') {
           throw new Error('Invalid query key: must be a string');
         }
-        return apiRequest(url);
+        return apiClient.get(url);
       },
       staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: false,
+      retry: (failureCount, error) => {
+        // Don't retry on authentication errors
+        if (error instanceof Error && 
+            (error.message.includes('401') || error.message.includes('403'))) {
+          return false;
+        }
+        return failureCount < 3;
+      },
     },
   },
 });

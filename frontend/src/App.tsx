@@ -15,6 +15,7 @@ import UserManagement from "./pages/UserManagement";
 import Users from "./pages/Users";
 import ProtectedRoute from "./components/ProtectedRoute";
 import MainLayout from "./components/MainLayout";
+import { AuthTest } from "./components/AuthTest";
 import { UserProvider } from "@/hooks/use-user";
 
 const App = () => (
@@ -27,6 +28,7 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/auth" element={<Auth />} />
+              <Route path="/auth-test" element={<AuthTest />} />
               <Route path="/" element={
                 <ProtectedRoute>
                   <MainLayout>

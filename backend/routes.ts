@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { storage, authService } from "./storage";
 import session from "express-session";
 import MemoryStore from "memorystore";
 // Optional Redis session store if REDIS_URL provided
@@ -30,6 +30,7 @@ import xlsx from "xlsx";
 import { z } from "zod";
 import { paymentEdits, communicationEdits, payments, communications } from "../shared/schema";
 import { Storage } from '@google-cloud/storage';
+import { OAuth2Client } from 'google-auth-library';
 
 // Session interface extension
 declare module "express-session" {
@@ -216,6 +217,82 @@ export async function registerRoutes(app: Express): Promise<Server> {
   res.clearCookie('sessionid');
       res.json({ message: "Signed out successfully" });
     });
+  });
+
+  // Google OAuth Routes
+  app.post("/api/auth/google", async (req, res) => {
+    try {
+      const { idToken } = req.body;
+      
+      if (!idToken) {
+        return res.status(400).json({ error: "Google ID token is required" });
+      }
+
+      // Verify the Google ID token
+      const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+      const ticket = await client.verifyIdToken({
+        idToken: idToken,
+        audience: process.env.GOOGLE_CLIENT_ID,
+      });
+
+      const payload = ticket.getPayload();
+      if (!payload) {
+        return res.status(400).json({ error: "Invalid Google token" });
+      }
+
+      const { email, name, picture } = payload;
+      if (!email || !name) {
+        return res.status(400).json({ error: "Email and name are required from Google" });
+      }
+
+      console.log(`[auth] Google OAuth attempt email=${email}`);
+
+      // Check if user exists
+      let user = await storage.getUserByEmail(email);
+      
+      if (!user) {
+        // Create new user
+        console.log(`[auth] Creating new user from Google OAuth email=${email}`);
+        user = await storage.createUser({
+          email: email,
+          fullName: name,
+          passwordHash: '', // No password for OAuth users
+          role: 'customer',
+        });
+      } else {
+        console.log(`[auth] Existing user Google OAuth login email=${email}`);
+        // Update last login - use the existing auth service method
+        await authService.getUserById(user.id); // This will update lastLoginAt in the login flow
+      }
+
+      console.log(`[auth] Google OAuth success id=${user.id} email=${user.email} role=${user.role}`);
+
+      // Create session
+      req.session.userId = user.id;
+      console.log(`[auth] Google OAuth session created userId=${user.id} sessionID=${req.sessionID}`);
+      
+      // Save session explicitly
+      req.session.save((err) => {
+        if (err) {
+          console.error(`[auth] Google OAuth session save error:`, err);
+          return res.status(500).json({ error: "Session save failed" });
+        }
+        console.log(`[auth] Google OAuth session saved successfully`);
+        
+        res.json({
+          user: { 
+            id: user.id, 
+            email: user.email, 
+            fullName: user.fullName,
+            role: user.role || 'customer'
+          },
+          message: "Google OAuth login successful"
+        });
+      });
+    } catch (error: any) {
+      console.error("Google OAuth error:", error);
+      res.status(500).json({ error: "Google OAuth authentication failed" });
+    }
   });
 
   app.get("/api/auth/me", requireAuth, async (req, res) => {

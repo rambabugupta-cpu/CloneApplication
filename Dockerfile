@@ -6,11 +6,10 @@ WORKDIR /app
 # Copy all package and config files
 COPY package*.json ./
 COPY tsconfig.json ./
-COPY vite.config.ts ./
 COPY postcss.config.js ./
 COPY tailwind.config.ts ./
-COPY components.json ./
 COPY eslint.config.js ./
+COPY drizzle.config.ts ./
 
 # Copy the rest of the source code BEFORE running npm ci
 # This ensures all files are present for any potential post-install scripts
@@ -21,9 +20,9 @@ COPY . .
 RUN npm ci --ignore-scripts
 
 # Run the build script defined in package.json
-# This will build both client and server and place them in /dist
+# This will build the server and place it in /dist
 ENV NODE_ENV=production
-RUN npm run build
+RUN npm run build:backend
 
 # Stage 2: Production
 # This stage creates the final, small, and secure image

@@ -1,26 +1,40 @@
 import { useState, useEffect } from "react";
 import { useUser } from "./use-user";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient } from "../../../client/src/lib/queryClient";
+// import { getGCloudAuthService } from "../lib/gcloudAuth";
+import { apiClient } from "../lib/apiClient";
+
+// Temporary fallback for build issues
+const getGCloudAuthService = () => null;
 
 export function useAuth() {
   const { user, isLoading: loading, refetch } = useUser();
   const [isSigningIn, setIsSigningIn] = useState(false);
+  const [gcloudAuthInitialized, setGcloudAuthInitialized] = useState(false);
+
+  // Initialize Google Cloud authentication on mount
+  useEffect(() => {
+    const initGCloudAuth = async () => {
+      try {
+        const gcloudAuth: any = getGCloudAuthService();
+        if (gcloudAuth && typeof gcloudAuth.initialize === 'function') {
+          await gcloudAuth.initialize();
+          setGcloudAuthInitialized(true);
+          console.log('Google Cloud authentication initialized');
+        }
+      } catch (error) {
+        console.warn('Google Cloud authentication initialization failed:', error);
+      }
+    };
+
+    initGCloudAuth();
+  }, []);
 
   const signIn = async (email: string, password: string) => {
     setIsSigningIn(true);
     try {
-      const response = await fetch("/api/auth/signin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return { error: { message: data.error || "Failed to sign in" } };
-      }
+      // Try using the enhanced API client that handles both auth methods
+      const response = await apiClient.post("/api/auth/signin", { email, password });
 
       // Refetch user data and invalidate queries
       await refetch();
@@ -39,19 +53,7 @@ export function useAuth() {
 
   const signUp = async (email: string, password: string, name: string) => {
     try {
-      const response = await fetch("/api/auth/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password, name }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        return { error: { message: data.error || "Failed to sign up" } };
-      }
-
+      await apiClient.post("/api/auth/signup", { email, password, name });
       return { error: null };
     } catch (error: any) {
       return { error: { message: error.message || "Failed to sign up" } };
@@ -60,10 +62,13 @@ export function useAuth() {
 
   const signOut = async () => {
     try {
-      await fetch("/api/auth/signout", {
-        method: "POST",
-        credentials: "include",
-      });
+      await apiClient.post("/api/auth/signout");
+      
+      // Clear Google Cloud auth token
+      const gcloudAuth: any = getGCloudAuthService();
+      if (gcloudAuth && typeof gcloudAuth.clearToken === 'function') {
+        gcloudAuth.clearToken();
+      }
       
       // Clear all queries and redirect to auth page
       queryClient.clear();
@@ -79,5 +84,6 @@ export function useAuth() {
     signIn,
     signUp,
     signOut,
+    gcloudAuthInitialized,
   };
 }
