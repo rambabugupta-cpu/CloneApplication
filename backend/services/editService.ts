@@ -5,7 +5,7 @@ import {
   payments,
   communications,
   users
-} from "@shared/schema";
+} from "../../shared/schema";
 import { eq, and, lte, desc, sql } from "drizzle-orm";
 
 type PaymentEdit = typeof paymentEdits.$inferSelect;

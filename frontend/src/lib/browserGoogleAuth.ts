@@ -1,11 +1,13 @@
 // Browser-compatible Google Authentication Service
-// This replaces the server-side Google Cloud authentication
+// Uses modern Google Identity Services
 
 export class BrowserGoogleAuth {
   private static instance: BrowserGoogleAuth | null = null;
-  private isInitialized = false;
-  private gapi: any = null;
-  private accessToken: string | null = null;
+  private initializationPromise: Promise<void> | null = null;
+  private google: any = null;
+  private codeClient: any = null;
+  private onSignInSuccess: (() => void) | null = null;
+  private onSignInFailure: ((error: Error) => void) | null = null;
 
   private constructor() {}
 
@@ -16,48 +18,46 @@ export class BrowserGoogleAuth {
     return BrowserGoogleAuth.instance;
   }
 
-  async initialize(): Promise<void> {
-    if (this.isInitialized) {
-      return;
+  initialize(): Promise<void> {
+    if (!this.initializationPromise) {
+      this.initializationPromise = this._initialize();
     }
+    return this.initializationPromise;
+  }
 
+  private async _initialize(): Promise<void> {
     try {
-      // Load Google API
       await this.loadGoogleAPI();
-      
-      // Initialize gapi
-      await new Promise((resolve, reject) => {
-        this.gapi.load('auth2', {
-          callback: () => {
-            this.gapi.auth2.init({
-              client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || 'your-client-id.googleusercontent.com',
-              scope: 'https://www.googleapis.com/auth/cloud-platform'
-            }).then(resolve, reject);
-          },
-          onerror: reject
-        });
+
+      this.codeClient = this.google.accounts.oauth2.initCodeClient({
+        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/cloud-platform openid email profile',
+        ux_mode: 'popup',
+        callback: this.handleAuthCode.bind(this),
       });
 
-      this.isInitialized = true;
-      console.log('Browser Google auth initialized');
+      console.log('Browser Google auth initialized with code flow.');
     } catch (error) {
       console.warn('Failed to initialize browser Google auth:', error);
+      this.initializationPromise = null; // Allow retry
       throw error;
     }
   }
 
   private loadGoogleAPI(): Promise<void> {
     return new Promise((resolve, reject) => {
-      if (window.gapi) {
-        this.gapi = window.gapi;
+      if (window.google) {
+        this.google = window.google;
         resolve();
         return;
       }
 
       const script = document.createElement('script');
-      script.src = 'https://apis.google.com/js/api.js';
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
       script.onload = () => {
-        this.gapi = window.gapi;
+        this.google = window.google;
         resolve();
       };
       script.onerror = reject;
@@ -65,106 +65,87 @@ export class BrowserGoogleAuth {
     });
   }
 
-  async signIn(): Promise<string> {
-    if (!this.isInitialized) {
-      await this.initialize();
+  private async handleAuthCode(response: any) {
+    if (response.error) {
+      const error = new Error(response.error_description || 'Authorization failed');
+      console.error('Auth code error:', response.error);
+      if (this.onSignInFailure) {
+        this.onSignInFailure(error);
+      }
+      return;
     }
 
     try {
-      const authInstance = this.gapi.auth2.getAuthInstance();
-      const user = await authInstance.signIn();
-      const authResponse = user.getAuthResponse();
-      
-      this.accessToken = authResponse.access_token;
-      const idToken = authResponse.id_token;
-      
-      // Send the ID token to your backend for verification and session creation
-      const response = await fetch(`${import.meta.env.VITE_API_BASE}/api/auth/google`, {
+      const authCode = response.code;
+
+      // Send the authorization code to your backend
+      const backendResponse = await fetch(`${import.meta.env.VITE_API_BASE}/api/auth/google`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        credentials: 'include', // Important for session cookies
-        body: JSON.stringify({ idToken }),
+        credentials: 'include',
+        body: JSON.stringify({ authCode }), // Sending authCode instead of idToken
       });
-      
-      if (!response.ok) {
-        const errorData = await response.json();
+
+      if (!backendResponse.ok) {
+        const errorData = await backendResponse.json();
         throw new Error(errorData.error || 'Backend authentication failed');
       }
-      
-      const data = await response.json();
+
+      const data = await backendResponse.json();
       console.log('Backend authentication successful:', data);
-      
-      return this.accessToken!;
-    } catch (error) {
-      console.error('Sign-in failed:', error);
-      throw error;
+      if (this.onSignInSuccess) {
+        this.onSignInSuccess();
+      }
+    } catch (error: any) {
+      console.error('Backend authentication failed:', error);
+      if (this.onSignInFailure) {
+        this.onSignInFailure(error);
+      }
     }
   }
 
-  async getAccessToken(): Promise<string> {
-    if (!this.isInitialized) {
-      await this.initialize();
-    }
-
-    const authInstance = this.gapi.auth2.getAuthInstance();
-    if (!authInstance.isSignedIn.get()) {
-      return await this.signIn();
-    }
-
-    const user = authInstance.currentUser.get();
-    const authResponse = user.getAuthResponse();
-    
-    // Check if token is expired
-    if (authResponse.expires_at < Date.now()) {
-      await user.reloadAuthResponse();
-      const newAuthResponse = user.getAuthResponse();
-      this.accessToken = newAuthResponse.access_token;
-    } else {
-      this.accessToken = authResponse.access_token;
-    }
-
-    return this.accessToken!;
-  }
-
-  async makeAuthenticatedRequest(url: string, options: RequestInit = {}): Promise<Response> {
-    const token = await this.getAccessToken();
-    
-    const authenticatedOptions: RequestInit = {
-      ...options,
-      headers: {
-        ...options.headers,
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-    };
-
-    return fetch(url, authenticatedOptions);
+  async signIn(): Promise<void> {
+    await this.initialize();
+    return new Promise<void>((resolve, reject) => {
+      this.onSignInSuccess = () => {
+        this.onSignInSuccess = null;
+        this.onSignInFailure = null;
+        resolve();
+      };
+      this.onSignInFailure = (error: Error) => {
+        this.onSignInSuccess = null;
+        this.onSignInFailure = null;
+        reject(error);
+      };
+      this.codeClient.requestCode();
+    });
   }
 
   signOut(): void {
-    if (this.isInitialized && this.gapi?.auth2) {
-      const authInstance = this.gapi.auth2.getAuthInstance();
-      authInstance.signOut();
+    // With the code flow, sign-out is primarily managed on the backend by invalidating the session.
+    // We can also call `google.accounts.id.disableAutoSelect();` to prevent one-tap from showing up automatically.
+    if (this.google) {
+      this.google.accounts.id.disableAutoSelect();
     }
-    this.accessToken = null;
+    console.log('Client-side sign out initiated. Session invalidation should be handled by the backend.');
   }
 
   isSignedIn(): boolean {
-    if (!this.isInitialized || !this.gapi?.auth2) {
-      return false;
-    }
-    const authInstance = this.gapi.auth2.getAuthInstance();
-    return authInstance.isSignedIn.get();
+    // The source of truth for signed-in state is the backend session.
+    // This method is not reliable on the client-side with the code flow.
+    // The application should rely on a session check with the backend (e.g., a /api/me endpoint).
+    return false;
   }
 }
 
 // Global type declarations
 declare global {
   interface Window {
-    gapi: any;
+    google: any;
   }
 }
 
 export const browserGoogleAuth = BrowserGoogleAuth.getInstance();
+

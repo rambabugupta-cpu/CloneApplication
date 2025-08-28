@@ -1,16 +1,24 @@
-// Enhanced API Client with Google Cloud Authentication Support
-import { browserGoogleAuth } from './browserGoogleAuth';
-
-// Temporary fallback for build issues - replaced with browser auth
-const getGCloudAuthService = () => browserGoogleAuth;
+// Enhanced API Client with Session-based Authentication
+// Simplified version without Google Cloud Auth dependencies
 
 // API configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE || 
-  import.meta.env.VITE_API_URL || 
-  'https://tally-backend-ka4xatti3a-em.a.run.app';
+function resolveBaseUrl(): string {
+  // Prefer relative requests on Firebase Hosting to avoid third‑party cookies
+  if (typeof window !== 'undefined') {
+    const host = window.location.host || '';
+    const isFirebaseHosting = host.endsWith('.web.app') || host.endsWith('.firebaseapp.com');
+    const forceAbsolute = (import.meta as any)?.env?.VITE_API_FORCE_ABSOLUTE === 'true';
+    if (isFirebaseHosting && !forceAbsolute) {
+      return '';
+    }
+  }
+  // Fall back to env-provided absolute URL (useful for local dev or non-hosted usage)
+  return (import.meta as any).env.VITE_API_BASE || (import.meta as any).env.VITE_API_URL || '';
+}
+
+const API_BASE_URL = resolveBaseUrl();
 
 export interface ApiRequestOptions extends RequestInit {
-  useGCloudAuth?: boolean;
   timeout?: number;
 }
 
@@ -22,47 +30,30 @@ class ApiClient {
   }
 
   private async makeRequest(url: string, options: ApiRequestOptions = {}): Promise<Response> {
-    const { useGCloudAuth = false, timeout = 10000, ...fetchOptions } = options;
-    const fullUrl = url.startsWith('http') ? url : `${this.baseUrl}${url}`;
-
-    // Create AbortController for timeout
+    const { timeout = 30000, ...fetchOptions } = options;
+  const fullUrl = `${this.baseUrl}${url}`;
+    
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     try {
-      let response: Response;
-
-      if (useGCloudAuth) {
-        // Use Google Cloud authentication
-        const gcloudAuth = getGCloudAuthService();
-        if (!gcloudAuth || typeof gcloudAuth.makeAuthenticatedRequest !== 'function') {
-          throw new Error('Google Cloud authentication not available');
-        }
-        
-        response = await gcloudAuth.makeAuthenticatedRequest(fullUrl, {
-          ...fetchOptions,
-          signal: controller.signal,
-        });
-      } else {
-        // Use regular authentication (cookies/sessions)
-        response = await fetch(fullUrl, {
-          ...fetchOptions,
-          credentials: 'include',
-          signal: controller.signal,
-          headers: {
-            'Content-Type': 'application/json',
-            ...fetchOptions.headers,
-          },
-        });
-      }
+  // Use session-based authentication with cookies
+      const response = await fetch(fullUrl, {
+        ...fetchOptions,
+        credentials: 'include', // Include cookies for session authentication
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          ...fetchOptions.headers,
+        },
+      });
 
       clearTimeout(timeoutId);
       return response;
     } catch (error) {
       clearTimeout(timeoutId);
-      
       if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Request timeout');
+        throw new Error(`Request timeout after ${timeout}ms`);
       }
       throw error;
     }
@@ -70,14 +61,7 @@ class ApiClient {
 
   async request<T = any>(url: string, options: ApiRequestOptions = {}): Promise<T> {
     try {
-      // First, try with regular authentication
-      let response = await this.makeRequest(url, { ...options, useGCloudAuth: false });
-      
-      // If we get 401/403, try with Google Cloud authentication
-      if ((response.status === 401 || response.status === 403) && !options.useGCloudAuth) {
-        console.log('Regular auth failed, trying Google Cloud auth...');
-        response = await this.makeRequest(url, { ...options, useGCloudAuth: true });
-      }
+      const response = await this.makeRequest(url, options);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ 

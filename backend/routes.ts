@@ -2,9 +2,11 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage, authService } from "./storage";
 import session from "express-session";
-import MemoryStore from "memorystore";
+import cookieParser from "cookie-parser";
+import jwt from "jsonwebtoken";
+// import MemoryStore from "memorystore"; // Unused - commented out
 // Optional Redis session store if REDIS_URL provided
-let RedisStore: any = null;
+// let RedisStore: any = null; // Unused - commented out
 let redisClient: any = null;
 if (process.env.REDIS_URL) {
   try {
@@ -16,8 +18,8 @@ if (process.env.REDIS_URL) {
     redisClient = createClient({ url: process.env.REDIS_URL });
     redisClient.on('error', (err: any) => console.error('[redis] error', err));
     redisClient.connect?.();
-    RedisStore = connectRedis(session);
-  } catch (e) {
+    // RedisStore = connectRedis(session); // Unused - commented out
+  } catch {
     console.warn('[session] Redis not available, falling back to MemoryStore');
   }
 }
@@ -27,7 +29,7 @@ import * as SharedSchema from "../shared/schema";
 import { eq } from "drizzle-orm";
 import multer from "multer";
 import xlsx from "xlsx";
-import { z } from "zod";
+// import { z } from "zod"; // Unused - commented out
 import { paymentEdits, communicationEdits, payments, communications } from "../shared/schema";
 import { Storage } from '@google-cloud/storage';
 import { OAuth2Client } from 'google-auth-library';
@@ -43,7 +45,7 @@ declare module "express-session" {
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB limit
+  fileSize: 2 * 1024 * 1024, // 2MB limit (lowered to reduce RAM usage)
   },
   fileFilter: (req, file, cb) => {
     // Check file extension as well as MIME type for better compatibility
@@ -67,46 +69,101 @@ const upload = multer({
 export async function registerRoutes(app: Express): Promise<Server> {
   // Configure CORS for proper credential handling
   const frontendOrigin = process.env.FRONTEND_ORIGIN;
+  // Support multiple origins - split by comma if provided
+  const allowedOrigins = frontendOrigin 
+    ? frontendOrigin.split(',').map(origin => origin.trim())
+    : ['https://accountancy-469917.web.app', 'https://accountancy-469917.firebaseapp.com'];
+  
+  // console.debug('CORS allowedOrigins:', allowedOrigins);
+  
   app.use(cors({
-    origin: frontendOrigin ? [frontendOrigin] : true,
+    origin: (origin, callback) => {
+  // console.debug('CORS check for origin:', origin);
+      // Allow requests with no origin (mobile apps, curl, etc.)
+      if (!origin) return callback(null, true);
+      
+      if (allowedOrigins.includes(origin)) {
+  // console.debug('CORS allowing origin:', origin);
+        return callback(null, true);
+      } else {
+  // console.debug('CORS blocking origin:', origin);
+        return callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   }));
   
 
-  // Create Memory store for sessions (fallback solution)
-  const MemoryStoreSession = MemoryStore(session);
-  
-  // Configure session middleware with memory store
+  // Cookie parser middleware - MUST be before session middleware
+  app.use(cookieParser());
+
+  // Configure session middleware
   app.use(session({
-    store: RedisStore && redisClient
-      ? new RedisStore({ client: redisClient, prefix: 'sess:' })
-      : new MemoryStoreSession({ checkPeriod: 86400000 }),
     secret: process.env.SESSION_SECRET || 'your-secret-key-change-in-production',
     resave: false,
     saveUninitialized: false,
     name: 'sessionid', // Change name to avoid conflicts
     rolling: true, // Reset expiry on each request
     cookie: {
-      secure: process.env.NODE_ENV === 'production' || !!frontendOrigin, // HTTPS in prod or when cross-site
+      secure: true, // Always use secure for HTTPS
       httpOnly: true,
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-      sameSite: frontendOrigin ? 'none' : 'lax', // allow cross-site if using separate origin
+      sameSite: 'none', // Required for cross-site cookies
       path: '/',
     },
   }));
 
+  // Resolve JWT secret
+  const jwtSecret = process.env.SESSION_SECRET || 'your-secret-key-change-in-production';
+
   // Auth middleware to check if user is authenticated
   const requireAuth = (req: any, res: any, next: any) => {
-    console.log(`[auth] requireAuth check sessionID=${req.sessionID} userId=${req.session?.userId}`);
-    if (!req.session.userId) {
-      console.log(`[auth] requireAuth failed - no userId in session`);
-      return res.status(401).json({ error: "Authentication required" });
+  // console.debug(`[auth] requireAuth check sessionID=${req.sessionID} userId=${req.session?.userId}`);
+    if (req.session?.userId) {
+  // console.debug(`[auth] requireAuth passed via session for userId=${req.session.userId}`);
+      return next();
     }
-    console.log(`[auth] requireAuth passed for userId=${req.session.userId}`);
-    next();
+
+    // Fallback: verify JWT from cookie for stateless auth
+    const token = req.cookies?.sessionid;
+    if (token) {
+      try {
+        const payload: any = jwt.verify(token, jwtSecret);
+        if (payload?.uid) {
+          req.session = req.session || {};
+          req.session.userId = payload.uid;
+          // console.debug(`[auth] requireAuth passed via JWT for userId=${payload.uid}`);
+          return next();
+        }
+      } catch (e) {
+        console.warn('[auth] JWT verify failed');
+      }
+    }
+
+  // console.debug(`[auth] requireAuth failed - no userId in session or JWT`);
+    return res.status(401).json({ error: "Authentication required" });
   };
+
+  // Health check endpoint (no auth required)
+  app.get('/api/health', (req, res) => {
+    res.json({ 
+      status: 'healthy', 
+      timestamp: new Date().toISOString(),
+      environment: process.env.NODE_ENV || 'development'
+    });
+  });
+
+  // Quick debug POST route to verify that POST requests reach the service
+  // Useful when diagnosing 404 vs handler errors from Cloud Run.
+  app.post('/api/debug/auth/google', (req, res) => {
+  // console.debug('[debug] /api/debug/auth/google received', {
+      headers: req.headers,
+      bodySample: typeof req.body === 'object' ? JSON.stringify(req.body).slice(0, 1000) : String(req.body)
+    });
+    res.json({ ok: true, message: 'debug endpoint reached', received: req.body });
+  });
 
   // Signed URLs for uploads (GCS)
   app.post('/api/uploads/sign', requireAuth, async (req, res) => {
@@ -172,17 +229,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Email and password required" });
       }
       const lowered = String(email).toLowerCase();
-      console.log(`[auth] signin attempt email=${lowered}`);
+  // console.debug(`[auth] signin attempt email=${lowered}`);
       const user = await storage.validateUser(lowered, password);
       if (!user) {
         console.warn(`[auth] signin failed email=${lowered} :: invalid credentials`);
         return res.status(401).json({ error: "Invalid credentials" });
       }
-      console.log(`[auth] signin success id=${user.id} email=${user.email} role=${user.role}`);
+  // console.debug(`[auth] signin success id=${user.id} email=${user.email} role=${user.role}`);
 
-      // Create session
-      req.session.userId = user.id;
-      console.log(`[auth] session created userId=${user.id} sessionID=${req.sessionID}`);
+  // Create session
+  req.session.userId = user.id;
+  // console.debug(`[auth] session created userId=${user.id} sessionID=${req.sessionID}`);
       
       // Save session explicitly
       req.session.save((err) => {
@@ -190,7 +247,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
           console.error(`[auth] session save error:`, err);
           return res.status(500).json({ error: "Session save failed" });
         }
-        console.log(`[auth] session saved successfully`);
+  // console.debug(`[auth] session saved successfully`);
+  // console.debug(`[auth] response headers will include session cookie`);
+        
+  // Also set a JWT cookie for stateless auth across instances
+  const token = jwt.sign({ uid: user.id }, jwtSecret, { expiresIn: '7d' });
+  res.cookie('sessionid', token, {
+          secure: true,
+          httpOnly: true,
+          maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+          sameSite: 'none',
+          path: '/',
+        });
+  // console.debug('[auth] set-cookie sessionid sent');
         
         res.json({
           user: { 
@@ -222,14 +291,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Google OAuth Routes
   app.post("/api/auth/google", async (req, res) => {
     try {
-      const { idToken } = req.body;
+      const { authCode } = req.body;
       
-      if (!idToken) {
-        return res.status(400).json({ error: "Google ID token is required" });
+      if (!authCode) {
+        return res.status(400).json({ error: "Google authorization code is required" });
       }
 
-      // Verify the Google ID token
-      const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+      // Initialize Google Auth client for code exchange
+      const client = new OAuth2Client(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        'postmessage' // Important for this flow
+      );
+
+      // Exchange authorization code for tokens
+      const { tokens } = await client.getToken(authCode);
+      const idToken = tokens.id_token;
+
+      if (!idToken) {
+        return res.status(400).json({ error: "Failed to retrieve ID token from Google" });
+      }
+
+      // Verify the ID token to get user details
       const ticket = await client.verifyIdToken({
         idToken: idToken,
         audience: process.env.GOOGLE_CLIENT_ID,
@@ -240,7 +323,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid Google token" });
       }
 
-      const { email, name, picture } = payload;
+      const { email, name } = payload as any;
       if (!email || !name) {
         return res.status(400).json({ error: "Email and name are required from Google" });
       }
@@ -313,6 +396,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
       console.error("Get user error:", error);
       res.status(500).json({ error: "Failed to get user data" });
     }
+  });
+
+  // Lightweight endpoint to introspect current session without requiring user lookup
+  app.get('/api/auth/session-check', (req, res) => {
+    res.json({ sessionID: req.sessionID, hasUserId: Boolean(req.session?.userId) });
   });
 
   // User Management Routes (Admin only)
@@ -584,18 +672,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Debug: Log the first few collections to see if they have latestCommunication
       if (collections.length > 0) {
-        console.log('=== Collections Debug ===');
-        console.log(`Returning ${collections.length} collections`);
-        console.log('First collection sample:', {
-          id: collections[0].id,
-          invoiceNumber: collections[0].invoiceNumber,
-          hasLatestCommunication: !!collections[0].latestCommunication,
-          latestCommunication: collections[0].latestCommunication ? {
-            type: collections[0].latestCommunication.type,
-            content: collections[0].latestCommunication.content?.substring(0, 50) + '...',
-            createdAt: collections[0].latestCommunication.createdAt
-          } : null
-        });
+  // Debug logging for collections removed to reduce disk usage
       }
       
       res.json({
@@ -836,7 +913,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get("/api/dashboard/collection-performance", requireAuth, async (req, res) => {
     try {
-      const stats = await storage.getDashboardStats();
+      // const stats = await storage.getDashboardStats(); // Unused - commented out
       
       // Performance metrics by staff member
       const staffPerformance = [
@@ -1023,7 +1100,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
               if (!existingUser) {
                 // Create customer user account with default password
                 const defaultPassword = `${customerCode}@123`; // Customer code + @123
-                const newUser = await storage.createUser({
+                // const newUser = await storage.createUser({
+                await storage.createUser({
                   email: userEmail,
                   passwordHash: defaultPassword, // Will be hashed in createUser
                   fullName: customerName,

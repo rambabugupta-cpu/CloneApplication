@@ -5,9 +5,10 @@ import {
   notifications,
   auditLogs,
   users,
+  customers,
   type Payment, 
   type InsertPayment 
-} from "@shared/schema";
+} from "../../shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 import { CollectionService } from "./collectionService";
 import { NotificationService } from "./notificationService";
@@ -214,8 +215,6 @@ export class PaymentService {
   }
 
   async getPendingPayments(): Promise<any[]> {
-    const { customers } = await import("@shared/schema");
-    
     const pendingPayments = await db.select({
       id: payments.id,
       amount: payments.amount,
@@ -278,8 +277,6 @@ export class PaymentService {
   }
 
   async getAllPayments(limit: number = 100, offset: number = 0): Promise<any[]> {
-    const { customers } = await import("@shared/schema");
-    
     return await db.select({
       id: payments.id,
       amount: payments.amount,

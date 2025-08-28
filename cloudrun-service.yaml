@@ -22,8 +22,29 @@ spec:
         env:
         - name: NODE_ENV
           value: "production"
+        - name: SERVE_CLIENT
+          value: "false"
+        # Database and OAuth config are sourced from Secret Manager at runtime
         - name: DATABASE_URL
-          value: "postgres://tallyuser:9oPOKUl2FRm3DYMn@35.239.108.141:5432/tallyToCash?sslmode=disable"
+          valueFrom:
+            secretKeyRef:
+              name: DATABASE_URL
+              key: latest
+        - name: GOOGLE_CLIENT_ID
+          valueFrom:
+            secretKeyRef:
+              name: GOOGLE_CLIENT_ID
+              key: latest
+        - name: GOOGLE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: GOOGLE_CLIENT_SECRET
+              key: latest
+        - name: FRONTEND_ORIGIN
+          valueFrom:
+            secretKeyRef:
+              name: FRONTEND_ORIGIN
+              key: latest
         resources:
           limits:
             cpu: "1000m"

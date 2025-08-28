@@ -18,13 +18,13 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: ReactNode }) {
-  const { data: user, isLoading, refetch } = useQuery({
+  const { data: user, isLoading, refetch } = useQuery<User | null>({
     queryKey: ["/api/auth/me"],
     retry: false,
   });
 
   return (
-    <UserContext.Provider value={{ user, isLoading, refetch }}>
+    <UserContext.Provider value={{ user: user ?? null, isLoading, refetch }}>
       {children}
     </UserContext.Provider>
   );

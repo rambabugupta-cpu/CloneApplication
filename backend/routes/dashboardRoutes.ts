@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../middleware/auth";
 import { collectionService, paymentService, customerService } from "../storage";
+import type { Customer } from "../../shared/schema";
 
 const router = Router();
 
@@ -25,7 +26,7 @@ router.get("/api/dashboard/stats", requireAuth, async (req, res) => {
 
     // Get customer counts
     const customers = await customerService.getAllCustomers();
-    const activeCustomers = customers.filter(c => c.isActive).length;
+    const activeCustomers = customers.filter((c: Customer) => c.isActive).length;
 
     // Get aging analysis
     const collections = await collectionService.searchCollections({});

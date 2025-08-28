@@ -30,11 +30,11 @@ steps:
     args: [
       'run', 'deploy', 'tally-backend',
       '--image', 'gcr.io/$PROJECT_ID/tally-backend:$COMMIT_SHA',
-      '--region', 'us-central1',
+  '--region', 'asia-south2',
       '--platform', 'managed',
       '--allow-unauthenticated',
-      '--set-env-vars', 'NODE_ENV=production',
-      '--set-env-vars', 'DATABASE_URL=${_DATABASE_URL}',
+  '--set-env-vars', 'NODE_ENV=production,SERVE_CLIENT=false,PGSSLMODE=disable',
+  '--set-secrets', 'DATABASE_URL=DATABASE_URL:latest,GOOGLE_CLIENT_ID=GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=GOOGLE_CLIENT_SECRET:latest,FRONTEND_ORIGIN=FRONTEND_ORIGIN:latest',
       '--memory', '1Gi',
       '--cpu', '1',
       '--max-instances', '100',
@@ -42,8 +42,7 @@ steps:
     ]
 
 # Substitution variables (set in Cloud Build triggers)
-substitutions:
-  _DATABASE_URL: 'postgres://tallyuser:your-password@35.239.108.141:5432/tallyToCash?sslmode=disable'
+substitutions: {}
 
 options:
   machineType: 'E2_HIGHCPU_8'

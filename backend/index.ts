@@ -116,7 +116,7 @@ import { seedDatabase } from "./seed";
     }
   }
 
-  const port = Number(process.env.PORT || 5000);
+  const port = Number(process.env.PORT || 3000);
   server.listen({
     port,
     host: "0.0.0.0",

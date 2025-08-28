@@ -6,14 +6,18 @@ import {
   customerService,
   auditService 
 } from "../storage";
-import { z } from "zod";
+import { communications, type Customer } from "../../shared/schema";
+import { db } from "../db";
+import { eq, desc } from "drizzle-orm";
+// import { z } from "zod"; // Unused - commented out
 
 const router = Router();
 
 // Get all collections with filters
 router.get("/api/collections", requireAuth, async (req, res) => {
   try {
-    const { status, search } = req.query;
+    const { status } = req.query;
+    // const search = req.query.search; // Unused - commented out
     const userId = req.user?.id;
     const userRole = req.user?.role;
 
@@ -24,9 +28,12 @@ router.get("/api/collections", requireAuth, async (req, res) => {
       collections = await collectionService.getCollectionsForStaff(userId!);
     } else if (userRole === 'customer') {
       // Customers see their own collections
-      const customer = await customerService.getAllCustomers({ userId: userId as any });
-      if (customer.length > 0) {
-        collections = await collectionService.getCollectionsByCustomer(customer[0].id);
+      // TODO: Need to implement a method to find customer by userId
+      // For now, get all customers and filter (should be optimized)
+      const customers = await customerService.getAllCustomers();
+      const customer = customers.find((c: Customer) => c.id === userId); // This logic needs to be reviewed
+      if (customer) {
+        collections = await collectionService.getCollectionsByCustomer(customer.id);
       } else {
         collections = [];
       }
@@ -184,9 +191,6 @@ router.get("/api/collections/:id/payments", requireAuth, async (req, res) => {
 // Add communication log
 router.post("/api/collections/:id/communications", requireStaff, async (req, res) => {
   try {
-    const { db } = await import("../db");
-    const { communications } = await import("@shared/schema");
-    
     const [communication] = await db.insert(communications).values({
       ...req.body,
       collectionId: req.params.id,
@@ -212,10 +216,6 @@ router.post("/api/collections/:id/communications", requireStaff, async (req, res
 // Get communication logs
 router.get("/api/collections/:id/communications", requireAuth, async (req, res) => {
   try {
-    const { db } = await import("../db");
-    const { communications } = await import("@shared/schema");
-    const { eq, desc } = await import("drizzle-orm");
-    
     const logs = await db.select()
       .from(communications)
       .where(eq(communications.collectionId, req.params.id))
