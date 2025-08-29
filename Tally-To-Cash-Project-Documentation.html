@@ -300,25 +300,26 @@
         </div>
 
         <div class="section">
-            <h2>🚀 Live Deployment Status</h2>
+            <h2>🚀 Live Deployment Status (2025)</h2>
             <div class="highlight success">
-                <strong>✅ Complete Application Successfully Deployed to Production</strong><br>
-                Frontend: Firebase Hosting | Backend: Asia-South2 Region (Mumbai, India)<br>
-                Last Updated: August 27, 2025 - Authentication System Enhanced
+                <strong>✅ Application is fully deployed and operational</strong><br>
+                <b>Frontend:</b> Firebase Hosting (Global CDN)<br>
+                <b>Backend:</b> Google Cloud Run (asia-south2, Mumbai)<br>
+                <b>Database:</b> Google Cloud SQL (PostgreSQL 17)<br>
+                <b>Last Updated:</b> August 28, 2025 - Google OAuth, session, and environment fixes applied
             </div>
-
             <div class="deployment-grid">
                 <div class="service-card">
-                    <h4>🖥️ Frontend (React App)</h4>
+                    <h4>🖥️ Frontend (React + Vite)</h4>
                     <span class="service-status status-deployed">DEPLOYED</span>
                     <p><strong>Platform:</strong> Firebase Hosting</p>
                     <p><strong>Region:</strong> Global CDN</p>
                     <div class="url-box">
                         <strong>Live URL:</strong><br>
-                        <a href="https://accountancy-469917.web.app" target="_blank">https://accountancy-469917.web.app</a>
+                        <a href="https://accountancy-469917.web.app" target="_blank">https://accountancy-469917.web.app</a><br>
+                        <a href="https://accountancy-469917.firebaseapp.com" target="_blank">https://accountancy-469917.firebaseapp.com</a>
                     </div>
                 </div>
-
                 <div class="service-card">
                     <h4>⚡ Backend API Server</h4>
                     <span class="service-status status-running">RUNNING</span>
@@ -326,12 +327,12 @@
                     <p><strong>Region:</strong> asia-south2 (Mumbai)</p>
                     <div class="url-box">
                         <strong>API URL:</strong><br>
-                        <a href="https://tally-backend-597099030754.asia-south2.run.app" target="_blank">https://tally-backend-597099030754.asia-south2.run.app</a>
+                        <a href="https://tally-backend-597099030754.asia-south2.run.app" target="_blank">https://tally-backend-597099030754.asia-south2.run.app</a><br>
+                        <a href="https://tally-backend-ka4xatti3a-em.a.run.app" target="_blank">https://tally-backend-ka4xatti3a-em.a.run.app</a>
                     </div>
                     <p><strong>Service Name:</strong> tally-backend</p>
-                    <p><strong>Authentication:</strong> Google Cloud IAM</p>
+                    <p><strong>Authentication:</strong> Google OAuth 2.0 (code flow), session cookies</p>
                 </div>
-
                 <div class="service-card">
                     <h4>🗄️ Database (PostgreSQL)</h4>
                     <span class="service-status status-running">RUNNING</span>
@@ -342,7 +343,6 @@
                     <p><strong>Tier:</strong> db-perf-optimized-N-8</p>
                     <p><strong>IP:</strong> 34.131.107.78</p>
                 </div>
-
                 <div class="service-card">
                     <h4>📦 Container Registry</h4>
                     <span class="service-status status-running">ACTIVE</span>
@@ -487,42 +487,137 @@ SERVE_CLIENT=false
         </div>
 
         <div class="section">
-            <h2>⚠️ Known Issues & Solutions</h2>
+            <h2>🔐 Google OAuth Setup Guide (Complete Steps)</h2>
+            <p><strong>Problem:</strong> "Unable to access backend" - Google OAuth redirect_uri_mismatch or authentication errors.</p>
+            <p><strong>Solution:</strong> Follow these exact steps to fix Google OAuth authentication between frontend and backend.</p>
+
+            <h3>Step 1: Test Backend Health (Basic Check)</h3>
+            <div class="code-block">
+# Test if backend is running at all
+curl https://tally-backend-597099030754.asia-south2.run.app/api/health
+
+# Expected response: {"status":"ok","timestamp":"..."}
+# If this fails, backend is down or unreachable
+            </div>
+
+            <h3>Step 2: Find Your OAuth Client in Google Cloud Console</h3>
+            <ol style="margin-left: 20px;">
+                <li>Go to <a href="https://console.cloud.google.com/apis/credentials" target="_blank">Google Cloud Console → APIs & Services → Credentials</a></li>
+                <li>Look for OAuth 2.0 Client with ID: <code>597099030754-c6i7kp1nn4iq8dcrlhf7j7qogsso9tnv.apps.googleusercontent.com</code></li>
+                <li>Click on it to edit</li>
+                <li>If you don't see it, you need to create a new "Web application" OAuth client</li>
+            </ol>
+
+            <h3>Step 3: Configure OAuth Client (Exact Settings)</h3>
+            <div style="background: #fff3cd; padding: 15px; border-left: 4px solid #ffc107; border-radius: 4px; margin: 15px 0;">
+                <strong>⚠️ CRITICAL:</strong> Add these EXACT entries to your OAuth client:
+            </div>
             
-            <div class="highlight success">
-                <h4>🔒 Authentication Requirement - ✅ RESOLVED</h4>
-                <p><strong>Issue:</strong> Backend requires Google Cloud authentication due to organization policies.</p>
-                <p><strong>Impact:</strong> Public access is restricted by IAM policies.</p>
-                <p><strong>Solution:</strong> ✅ Implemented enhanced authentication system with automatic fallback.</p>
-                
-                <h5>🔧 Authentication Implementation Details</h5>
-                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #28a745;">
-                    <h6>Key Components:</h6>
-                    <ul>
-                        <li><strong>GCloudAuthService:</strong> Singleton service for Google Cloud authentication with token caching</li>
-                        <li><strong>Enhanced API Client:</strong> Automatic fallback from session auth to Google Cloud auth</li>
-                        <li><strong>Authentication Hooks:</strong> React hooks with Google Cloud integration</li>
-                        <li><strong>Test Dashboard:</strong> Developer tools for testing authentication methods</li>
-                    </ul>
-                    
-                    <h6>Authentication Flow:</h6>
-                    <ol>
-                        <li>First attempt: Regular session-based authentication</li>
-                        <li>On 401/403: Automatic retry with Google Cloud authentication</li>
-                        <li>Token caching and automatic expiry handling</li>
-                        <li>Graceful fallback for unsupported environments</li>
-                    </ol>
-                    
-                    <h6>Files Created:</h6>
-                    <ul>
-                        <li><code>frontend/src/lib/gcloudAuth.ts</code> - Google Cloud authentication service</li>
-                        <li><code>frontend/src/lib/apiClient.ts</code> - Enhanced API client with dual auth</li>
-                        <li><code>frontend/src/lib/authTestService.ts</code> - Authentication testing service</li>
-                        <li><code>frontend/src/hooks/useAuth.tsx</code> - Enhanced authentication hooks</li>
-                        <li><code>frontend/src/pages/AuthTestPage.tsx</code> - Authentication test dashboard</li>
-                        <li><code>docs/authentication-implementation.md</code> - Detailed documentation</li>
-                    </ul>
-                </div>
+            <h4>Authorized JavaScript origins:</h4>
+            <div class="code-block">
+https://accountancy-469917.web.app
+https://accountancy-469917.firebaseapp.com
+http://localhost:5173
+http://localhost:3000
+            </div>
+
+            <h4>Authorized redirect URIs:</h4>
+            <div class="code-block">
+https://accountancy-469917.web.app
+https://accountancy-469917.web.app/login
+https://accountancy-469917.firebaseapp.com
+https://accountancy-469917.firebaseapp.com/login
+http://localhost:5173
+http://localhost:5173/login
+http://localhost:3000
+http://localhost:3000/login
+            </div>
+
+            <h3>Step 4: Add Client Secret to Backend (REQUIRED)</h3>
+            <p>The backend CANNOT work without the client secret. Add it to Cloud Run:</p>
+            <div class="code-block">
+# Get the client secret from Google Cloud Console → Credentials → Your OAuth Client
+# Then run this command (replace YOUR_SECRET_VALUE):
+
+gcloud run services update tally-backend \
+  --region=asia-south2 \
+  --update-env-vars="GOOGLE_CLIENT_SECRET=YOUR_SECRET_VALUE"
+
+# Verify it was set:
+gcloud run services describe tally-backend --region=asia-south2 --format="value(spec.template.spec.template.spec.containers[0].env)"
+            </div>
+
+            <h3>Step 5: OAuth Consent Screen (For External Users)</h3>
+            <ol style="margin-left: 20px;">
+                <li>Go to <a href="https://console.cloud.google.com/apis/credentials/consent" target="_blank">OAuth consent screen</a></li>
+                <li>If it's "Internal" and you want external users to sign in, change to "External"</li>
+                <li>Fill required fields: App name, User support email, App logo (optional)</li>
+                <li>Add test users OR publish the app for public use</li>
+                <li>Save and continue through all steps</li>
+            </ol>
+
+            <h3>Step 6: Test the Full Flow</h3>
+            <div class="code-block">
+# 1. Open browser to your frontend
+https://accountancy-469917.web.app
+
+# 2. Open DevTools → Network tab
+# 3. Click "Sign in with Google"
+# 4. Check for these requests:
+#    - accounts.google.com/o/oauth2/v2/auth (should succeed)
+#    - YOUR_BACKEND/api/auth/google (should return 200, not 500)
+
+# 5. If you see errors, check the exact error message
+            </div>
+
+            <h3>Common Error Messages & Fixes</h3>
+            
+            <div class="highlight error">
+                <h4>❌ "redirect_uri_mismatch"</h4>
+                <p><strong>Cause:</strong> Frontend origin not in OAuth client's JavaScript origins</p>
+                <p><strong>Fix:</strong> Add exact origin (https://accountancy-469917.web.app) to Authorized JavaScript origins in Step 3</p>
+            </div>
+
+            <div class="highlight error">
+                <h4>❌ "Failed to fetch" or "Network Error"</h4>
+                <p><strong>Cause:</strong> Backend error (usually missing GOOGLE_CLIENT_SECRET)</p>
+                <p><strong>Fix:</strong> Complete Step 4 to add client secret to Cloud Run</p>
+            </div>
+
+            <div class="highlight error">
+                <h4>❌ "This app is blocked"</h4>
+                <p><strong>Cause:</strong> OAuth consent screen not configured or not published</p>
+                <p><strong>Fix:</strong> Complete Step 5 to configure consent screen</p>
+            </div>
+
+            <div class="highlight error">
+                <h4>❌ "CORS error"</h4>
+                <p><strong>Cause:</strong> Backend CORS not allowing frontend origin</p>
+                <p><strong>Fix:</strong> Backend already configured for your domains, but verify environment variables are correct</p>
+            </div>
+
+            <h3>Step 7: Verify Everything Works</h3>
+            <div class="code-block">
+# After completing all steps above:
+# 1. Clear browser cache/cookies
+# 2. Go to https://accountancy-469917.web.app
+# 3. Click "Sign in with Google"
+# 4. You should see Google popup → consent → success → logged in
+
+# Test backend access:
+# After logging in, check if you can access protected endpoints like:
+# /api/dashboard, /api/collections, etc.
+            </div>
+
+            <h3>How OAuth Works in This App (Technical)</h3>
+            <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 10px 0; border-left: 4px solid #667eea;">
+                <ol>
+                    <li><strong>Frontend:</strong> User clicks "Sign in" → Google Identity Services opens popup</li>
+                    <li><strong>Google:</strong> User consents → Google returns authorization code to frontend</li>
+                    <li><strong>Frontend:</strong> Sends code to backend: <code>POST /api/auth/google {authCode}</code></li>
+                    <li><strong>Backend:</strong> Exchanges code for tokens using client secret → creates session</li>
+                    <li><strong>Frontend:</strong> Gets session cookie → can access protected endpoints</li>
+                </ol>
             </div>
 
             <div class="highlight success">
@@ -538,7 +633,81 @@ SERVE_CLIENT=false
         </div>
 
         <div class="section">
-            <h2>📞 Support & Contact</h2>
+            <h2>�️ Planned Features & Roadmap (To Develop)</h2>
+            <p>The following features and engineering tasks are planned for short-term and medium-term sprints. Each item includes priority, a short acceptance criterion, and next steps.</p>
+
+            <h3>High Priority (next 2 sprints)</h3>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li><strong>Google OAuth: consent & production verification</strong>
+                    <ul>
+                        <li>Acceptance: OAuth flow works for external users without redirect_uri errors and backend exchanges codes successfully.</li>
+                        <li>Next: Publish consent screen (or add test users), add JavaScript origins & redirect URIs in Cloud Console, and set <code>GOOGLE_CLIENT_SECRET</code> in Cloud Run env.</li>
+                    </ul>
+                </li>
+                <li><strong>Backend type/schema cleanup</strong>
+                    <ul>
+                        <li>Acceptance: <code>npm run check</code> returns 0 TypeScript errors across backend and shared schema.</li>
+                        <li>Next: Fix missing/incorrect exports in <code>/shared/schema</code>, add types for storage and services, and add CI step to run typecheck.</li>
+                    </ul>
+                </li>
+                <li><strong>Session & security hardening</strong>
+                    <ul>
+                        <li>Acceptance: Secure cookie setup (SameSite, Secure), optional Redis session store for production, and clear session invalidation on signout.</li>
+                        <li>Next: Validate REDIS_URL setup, add secrets to runtime, and run a session security audit.</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h3>Medium Priority (1–3 months)</h3>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li><strong>Payments gateway integration</strong> (Razorpay/Stripe)
+                    <ul>
+                        <li>Acceptance: Create and process payments end-to-end with test mode and webhook handling for status updates.</li>
+                        <li>Next: Add payment service, secure webhook endpoints, and update UI flows.</li>
+                    </ul>
+                </li>
+                <li><strong>Role-based access control (RBAC)</strong>
+                    <ul>
+                        <li>Acceptance: Admin/owner/customer roles enforced in API and UI, protected admin routes.</li>
+                        <li>Next: Add role checks to <code>requireAuth</code>, add admin UI pages, and tests for permission checks.</li>
+                    </ul>
+                </li>
+                <li><strong>Automated tests & CI</strong>
+                    <ul>
+                        <li>Acceptance: Unit tests for core services + integration tests for auth flow; CI runs on PRs and merge to main.</li>
+                        <li>Next: Add Jest/Testing Library, CI job to run <code>npm run check</code> and tests, and simple smoke tests for deployed endpoints.</li>
+                    </ul>
+                </li>
+            </ul>
+
+            <h3>Lower Priority / Future (3+ months)</h3>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li><strong>Offline sync & mobile support</strong> — improve PWA behavior, optimize for mobile screens.</li>
+                <li><strong>Analytics & monitoring</strong> — wire Cloud Monitoring, error reporting, and structured logs for key services.</li>
+                <li><strong>Performance optimizations</strong> — split large frontend bundles, add caching for heavy API endpoints.</li>
+                <li><strong>Documentation & developer onboarding</strong> — add an onboarding README, architecture diagrams, and troubleshooting playbooks.</li>
+            </ul>
+
+            <h3>Quick tickets (small tasks)</h3>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>Fix leftover references to deleted `/auth-test` pages in code and docs.</li>
+                <li>Add <code>GOOGLE_CLIENT_SECRET</code> to Cloud Run env and rotate if necessary.</li>
+                <li>Add explicit authorized JavaScript origins and redirect URIs in Google Cloud Console for both <code>accountancy-469917.web.app</code> and <code>firebaseapp.com</code> domains and localhost ports.</li>
+                <li>Add a small end-to-end smoke test that hits <code>/api/health</code> and a frontend route after deployment.</li>
+            </ul>
+
+            <h3>How to pick up work</h3>
+            <ol>
+                <li>Run the typecheck and tests locally: <code>npm run check</code>, <code>npm test</code>.</li>
+                <li>Create a feature branch per ticket (naming: <code>feat/...</code> or <code>fix/...</code>).</li>
+                <li>Open a PR with brief summary, tests, and a smoke test script where applicable.</li>
+            </ol>
+
+            <p>If you want, I can open a set of starter PRs for the high-priority items: (1) OAuth consent + Cloud Run secret, (2) type/schema cleanup & CI, (3) add smoke tests.</p>
+        </div>
+
+        <div class="section">
+            <h2>�📞 Support & Contact</h2>
             <p><strong>Project Owner:</strong> rambabugupta@rbgconstruction.in</p>
             <p><strong>Repository:</strong> <a href="https://github.com/rambabugupta-cpu/CloneApplication" target="_blank">GitHub - CloneApplication</a></p>
             <p><strong>Development Environment:</strong> GitHub Codespaces</p>

@@ -160,14 +160,16 @@ export class AuthManager {
 
     const response = await fetch(url, requestOptions);
     
-    // If unauthorized, try Google Cloud authentication as fallback
+    // If unauthorized, the request failed - no fallback for now
     if (response.status === 401 || response.status === 403) {
-      try {
-        return await this.googleAuth.makeAuthenticatedRequest(url, options);
-      } catch (error) {
-        console.warn('Fallback Google Cloud auth failed:', error);
-        throw new Error('Authentication required');
-      }
+      // TODO: Implement proper fallback authentication
+      // try {
+      //   return await this.googleAuth.makeAuthenticatedRequest(url, options);
+      // } catch (error) {
+      //   console.warn('Fallback Google Cloud auth failed:', error);
+      //   throw new Error('Authentication required');
+      // }
+      throw new Error('Authentication required');
     }
 
     return response;

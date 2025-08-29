@@ -4,7 +4,7 @@ import {
   users,
   type Notification, 
   type InsertNotification 
-} from "@shared/schema";
+} from "../../shared/schema";
 import { eq, and, desc, sql } from "drizzle-orm";
 
 export class NotificationService {

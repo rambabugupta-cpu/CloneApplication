@@ -15,8 +15,9 @@ import UserManagement from "./pages/UserManagement";
 import Users from "./pages/Users";
 import ProtectedRoute from "./components/ProtectedRoute";
 import MainLayout from "./components/MainLayout";
-import { AuthTest } from "./components/AuthTest";
+// AuthTest removed - legacy test page deleted to avoid confusion
 import { UserProvider } from "@/hooks/use-user";
+import LoginPage from "./pages/LoginPage";
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -27,8 +28,9 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
+              <Route path="/login" element={<LoginPage />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/auth-test" element={<AuthTest />} />
+              {/* /auth-test removed - legacy test route deleted */}
               <Route path="/" element={
                 <ProtectedRoute>
                   <MainLayout>

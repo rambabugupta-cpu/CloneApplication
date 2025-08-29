@@ -1,0 +1,7 @@
+DATABASE_URL: "postgres://tallyuser:9oPOKUl2FRm3DYMn@35.239.108.141:5432/tallyToCash?sslmode=disable"
+FRONTEND_ORIGIN: "https://accountancy-469917.web.app,https://accountancy-469917.firebaseapp.com"
+GOOGLE_CLIENT_ID: "597099030754-tqudsq7gdr2sdmur9j5tln6ri1jie6q6.apps.googleusercontent.com"
+GOOGLE_CLIENT_SECRET: "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"
+NODE_ENV: "production"
+PGSSLMODE: "disable"
+SERVE_CLIENT: "false"

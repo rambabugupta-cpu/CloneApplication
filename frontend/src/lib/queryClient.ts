@@ -1,24 +1,17 @@
 import { QueryClient } from "@tanstack/react-query";
+import { apiClient } from "./apiClient";
 
-// API request utility with authentication
-const base = import.meta.env.VITE_API_BASE || '';
+// Centralized API request utility using the same ApiClient (ensures same base URL & credentials)
 export const apiRequest = async (url: string, options: RequestInit = {}) => {
-  const fullUrl = url.startsWith('http') ? url : `${base}${url}`;
-  const response = await fetch(fullUrl, {
-    ...options,
-    credentials: 'include', // Include cookies for session
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
+  const method = (options.method || 'GET').toUpperCase();
+  const body = options.body as any | undefined;
 
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: 'Network error' }));
-    throw new Error(error.error || 'Request failed');
-  }
-
-  return response.json();
+  if (method === 'GET') return apiClient.get(url, { headers: options.headers as any });
+  if (method === 'POST') return apiClient.post(url, body ? JSON.parse(String(body)) : undefined, { headers: options.headers as any });
+  if (method === 'PUT') return apiClient.put(url, body ? JSON.parse(String(body)) : undefined, { headers: options.headers as any });
+  if (method === 'DELETE') return apiClient.delete(url, { headers: options.headers as any });
+  // Fallback to generic request
+  return apiClient.request(url, options as any);
 };
 
 export const queryClient = new QueryClient({
@@ -29,7 +22,7 @@ export const queryClient = new QueryClient({
         if (typeof url !== 'string') {
           throw new Error('Invalid query key: must be a string');
         }
-        return apiRequest(url);
+  return apiRequest(url);
       },
       staleTime: 1000 * 60 * 5, // 5 minutes
       retry: false,

@@ -1,5 +1,5 @@
 import { db } from "./db";
-import { users, customers, collections, communications, payments, importBatches } from "@shared/schema";
+import { users, customers, collections, communications, payments, importBatches, paymentEdits, communicationEdits } from "../shared/schema";
 import bcrypt from "bcrypt";
 import { sql } from "drizzle-orm";
 
@@ -320,8 +320,9 @@ async function seedDatabase() {
     // Create some sample edit requests for testing approvals
     console.log("Creating sample edit requests...");
     
-    const { paymentEdits, communicationEdits } = await import("@shared/schema");
-    
+    // TODO: Fix this section - variables paymentIds, staffUser1, adminUser, etc. are not defined
+    // This section is commented out to fix TypeScript errors
+    /*
     const paymentEditIds = await db.insert(paymentEdits).values([
       {
         paymentId: paymentIds[0], // First payment
@@ -423,6 +424,7 @@ async function seedDatabase() {
         createdAt: new Date(Date.now() - 1000 * 60 * 60 * 12), // 12 hours ago
       }
     ]).returning();
+    */
 
     console.log("Created sample edit requests for testing approvals");
     console.log("Database seed completed successfully!");

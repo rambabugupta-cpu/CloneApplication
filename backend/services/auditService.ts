@@ -1,5 +1,5 @@
 import { db } from "../db";
-import { auditLogs, type AuditLog, type InsertAuditLog } from "@shared/schema";
+import { auditLogs, type AuditLog, type InsertAuditLog } from "../../shared/schema";
 import { eq, and, desc, gte, lte } from "drizzle-orm";
 
 export class AuditService {

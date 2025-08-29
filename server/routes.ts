@@ -30,6 +30,7 @@ import xlsx from "xlsx";
 import { z } from "zod";
 import { paymentEdits, communicationEdits, payments, communications } from "../shared/schema";
 import { Storage } from '@google-cloud/storage';
+import { OAuth2Client } from 'google-auth-library';
 
 // Session interface extension
 declare module "express-session" {
@@ -119,6 +120,67 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(status);
     } catch (e: any) {
       res.status(500).json({ ok: false, error: e?.message || 'health check failed' });
+    }
+  });
+
+  // Quick debug POST route to verify that POST requests reach the service
+  app.post('/api/debug/auth/google', (req, res) => {
+    console.log('[debug] /api/debug/auth/google received', {
+      headers: req.headers,
+      bodySample: typeof req.body === 'object' ? JSON.stringify(req.body).slice(0, 1000) : String(req.body)
+    });
+    res.json({ ok: true, message: 'debug endpoint reached', received: req.body });
+  });
+
+  // Google OAuth Routes (for frontend code exchange)
+  app.post("/api/auth/google", async (req, res) => {
+    try {
+      const { authCode } = req.body;
+      if (!authCode) return res.status(400).json({ error: "Google authorization code is required" });
+
+      const client = new OAuth2Client(
+        process.env.GOOGLE_CLIENT_ID,
+        process.env.GOOGLE_CLIENT_SECRET,
+        'postmessage'
+      );
+
+      const { tokens } = await client.getToken(authCode);
+      const idToken = tokens.id_token;
+      if (!idToken) return res.status(400).json({ error: "Failed to retrieve ID token from Google" });
+
+      const ticket = await client.verifyIdToken({ idToken, audience: process.env.GOOGLE_CLIENT_ID });
+      const payload = ticket.getPayload();
+      if (!payload) return res.status(400).json({ error: "Invalid Google token" });
+
+      interface GoogleTokenPayload {
+        email?: string;
+        name?: string;
+        [key: string]: any;
+      }
+      const { email, name } = payload as GoogleTokenPayload;
+      if (!email || !name) return res.status(400).json({ error: "Email and name are required from Google" });
+
+      console.log(`[auth] Google OAuth attempt email=${email}`);
+
+      // Use existing storage methods to find or create user
+      const user = await storage.getUserByEmail(email) || await storage.createUser({
+        email,
+        fullName: name,
+        passwordHash: '',
+        role: 'customer'
+      });
+
+      req.session.userId = user.id;
+      req.session.save((err) => {
+        if (err) {
+          console.error('[auth] Google session save error', err);
+          return res.status(500).json({ error: 'Session save failed' });
+        }
+        res.json({ user: { id: user.id, email: user.email, fullName: user.fullName }, message: 'Google OAuth login successful' });
+      });
+    } catch (error: any) {
+      console.error('Google OAuth error:', error);
+      res.status(500).json({ error: 'Google OAuth authentication failed' });
     }
   });
 
