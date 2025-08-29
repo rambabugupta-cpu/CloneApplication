@@ -45,8 +45,6 @@ jobs:
         include:
         - language: actions
           build-mode: none
-        - language: c-cpp
-          build-mode: manual
         - language: javascript-typescript
           build-mode: none
         - language: python
@@ -88,13 +86,7 @@ jobs:
     # to build your code.
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-    - if: matrix.build-mode == 'manual'
-      shell: bash
-      run: |
-        mkdir -p build
-        cd build
-        cmake ..
-        make
+  # No manual build steps required since no compiled languages are present
 
     - name: Perform CodeQL Analysis
       uses: github/codeql-action/analyze@v3
